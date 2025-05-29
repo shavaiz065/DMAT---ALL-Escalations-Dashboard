@@ -21,9 +21,9 @@ st.markdown("""
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
     
-    /* Hide default sidebar nav elements temporarily */
+    /* Custom sidebar nav styling */
     [data-testid="stSidebarNav"] {
-        display: none;
+        padding-top: 0;
     }
     
     /* Custom welcome message styling */
