@@ -21,8 +21,18 @@ st.markdown("""
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
     
+    /* Hide default navigation */
+    header[data-testid="stHeader"] {
+        display: none;
+    }
+    
     /* Custom sidebar nav styling */
     [data-testid="stSidebarNav"] {
+        display: none;
+    }
+    
+    /* Style sidebar content */
+    section[data-testid="stSidebar"] > div {
         padding-top: 0;
     }
     
