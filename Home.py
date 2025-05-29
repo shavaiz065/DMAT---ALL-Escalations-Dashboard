@@ -12,11 +12,10 @@ st.set_page_config(
     }
 )
 
-# Enable Streamlit's default navigation
+# Custom styling for the app
 st.markdown("""
 <style>
-    /* Show Streamlit's default navigation */
-    /* No hiding styles here */
+    /* Add any custom styles here */
 </style>
 """, unsafe_allow_html=True)
 
