@@ -1,0 +1,1380 @@
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import datetime
+import numpy as np
+import os
+import sys
+import json
+from io import BytesIO, StringIO
+
+# Debug print function
+debug_print = print  # Change to 'lambda *a, **k: None' to disable debug prints
+
+
+
+# Initialize session state for DataFrame if it doesn't exist
+if 'deductions_df' not in st.session_state:
+    st.session_state['deductions_df'] = pd.DataFrame()
+    st.session_state['file_processed'] = False
+
+# Initialize df at the module level
+df = pd.DataFrame()
+
+# Process the data if we have it
+if 'deductions_df' in st.session_state and not st.session_state['deductions_df'].empty:
+    df = st.session_state['deductions_df'].copy()
+    debug_print(f"Processing dataframe with {len(df)} records")
+    debug_print(f"Original columns: {df.columns.tolist()}")
+    
+    # Standardize column names (case-insensitive)
+    column_mapping = {
+        'provider': 'Provider',
+        'amount': 'Amount',
+        'environment': 'Environment',
+        'deduction submission date': 'Deduction Submission Date',
+        'status': 'Status',
+        'employer': 'Employer',
+        'pay day': 'Pay Day',
+        'method': 'Method',
+        'transactions': 'Transactions',
+        'failed amount': 'Failed Amount',
+        'failed department': 'Failed Department',
+        'escalated to': 'Escalated To',
+        'successful via automation': 'Successful via Automation',
+        'reason': 'Reason',
+        'remarks': 'Remarks',
+        'mode': 'Mode',
+        'task link / email subject': 'Task Link / Email Subject'
+    }
+    
+    # Create mapping from original to standard column names
+    mapping = {}
+    for orig_col in df.columns:
+        lower_col = str(orig_col).lower().strip()
+        if lower_col in column_mapping:
+            mapping[orig_col] = column_mapping[lower_col]
+    
+    # Rename columns
+    df = df.rename(columns=mapping)
+    
+    # Convert date columns
+    date_cols = ['Deduction Submission Date', 'Pay Day']
+    for col in date_cols:
+        if col in df.columns:
+            df[col] = pd.to_datetime(df[col], errors='coerce')
+    
+    # Convert amount columns to numeric
+    amount_cols = ['Amount', 'Failed Amount']
+    for col in amount_cols:
+        if col in df.columns:
+            if df[col].dtype == 'object':
+                df[col] = pd.to_numeric(df[col].astype(str).str.replace(r'[^\d.-]', '', regex=True), errors='coerce')
+    
+    # Store the processed dataframe back in session state
+    st.session_state['deductions_df'] = df
+    debug_print(f"Processed columns: {df.columns.tolist()}")
+
+# File to store credentials (should be shared with main app)
+CREDENTIALS_FILE = "credentials.json"
+
+# Load credentials
+def load_credentials():
+    if os.path.exists(CREDENTIALS_FILE):
+        try:
+            with open(CREDENTIALS_FILE, "r") as file:
+                data = json.load(file)
+                if "admin" in data and "DMAT" in data:
+                    return data
+        except json.JSONDecodeError:
+            pass
+
+    default_creds = {
+        "admin": {"username": "admin", "password": "dmat123461"},
+        "DMAT": {"username": "DMAT", "password": "payactiv123461"}
+    }
+    save_credentials(default_creds)
+    return default_creds
+
+# Save credentials
+def save_credentials(credentials):
+    with open(CREDENTIALS_FILE, "w") as file:
+        json.dump(credentials, file, indent=4)
+
+# Initialize authentication
+credentials = load_credentials()
+
+# Define themes
+THEMES = {
+    "Default": {
+        "primary_color": "#1E88E5",
+        "background_color": "#FFFFFF",
+        "text_color": "#424242",
+        "accent_color": "#FFC107",
+        "secondary_color": "#4CAF50",
+        "font": "sans-serif"
+    },
+    "Dark": {
+        "primary_color": "#2962FF",
+        "background_color": "#121212",
+        "text_color": "#E0E0E0",
+        "accent_color": "#FF6D00",
+        "secondary_color": "#00C853",
+        "font": "sans-serif"
+    },
+    "Corporate": {
+        "primary_color": "#0D47A1",
+        "background_color": "#F5F5F5",
+        "text_color": "#212121",
+        "accent_color": "#E65100",
+        "secondary_color": "#2E7D32",
+        "font": "serif"
+    }
+}
+
+# Apply theme
+def apply_theme(theme_name):
+    if theme_name not in THEMES:
+        theme_name = "Default"
+    
+    theme = THEMES[theme_name]
+    
+    # Apply CSS with the selected theme
+    st.markdown(f"""
+    <style>
+        /* Global Styles */
+        .stApp {{
+            background-color: {theme["background_color"]};
+            color: {theme["text_color"]};
+            font-family: {theme["font"]};
+        }}
+        
+        /* Headers */
+        h1, h2, h3, h4, h5, h6 {{
+            color: {theme["primary_color"]};
+            font-family: {theme["font"]};
+        }}
+        
+        /* Main title */
+        .main-title {{
+            color: {theme["primary_color"]};
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            text-align: center;
+            padding: 1rem;
+            border-bottom: 2px solid {theme["accent_color"]};
+        }}
+        
+        /* Sub titles */
+        .sub-title {{
+            color: {theme["primary_color"]};
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.3rem;
+            border-bottom: 1px solid {theme["accent_color"]}40;
+        }}
+        
+        /* Metrics */
+        .metric-card {{
+            background-color: {theme["primary_color"]}15;
+            border-radius: 10px;
+            padding: 1rem;
+            box-shadow: 0 4px 6px {theme["primary_color"]}20;
+            text-align: center;
+            margin-bottom: 1rem;
+        }}
+        
+        .metric-value {{
+            font-size: 2rem;
+            font-weight: 700;
+            color: {theme["primary_color"]};
+        }}
+        
+        .metric-label {{
+            font-size: 1rem;
+            color: {theme["text_color"]};
+            margin-top: 0.5rem;
+        }}
+        
+        /* Buttons */
+        .stButton button {{
+            background-color: {theme["primary_color"]};
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 0.5rem 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }}
+        
+        .stButton button:hover {{
+            background-color: {theme["accent_color"]};
+            color: {theme["background_color"]};
+        }}
+        
+        /* Sidebar */
+        .css-1d391kg {{
+            background-color: {theme["primary_color"]}15;
+        }}
+        
+        /* Tabs */
+        .stTabs [data-baseweb="tab-list"] {{
+            gap: 1rem;
+        }}
+        
+        .stTabs [data-baseweb="tab"] {{
+            background-color: {theme["background_color"]};
+            color: {theme["text_color"]};
+            border-radius: 5px 5px 0 0;
+            padding: 0.5rem 1rem;
+            border: 1px solid {theme["primary_color"]}30;
+            border-bottom: none;
+        }}
+        
+        .stTabs [aria-selected="true"] {{
+            background-color: {theme["primary_color"]}20;
+            color: {theme["primary_color"]};
+            font-weight: bold;
+            border-top: 2px solid {theme["primary_color"]};
+        }}
+    </style>
+    """, unsafe_allow_html=True)
+
+# Create session state for user preferences if not exists
+if 'theme' not in st.session_state:
+    st.session_state['theme'] = "Default"
+
+# Check authentication status
+if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
+    st.warning("Please log in from the Home page to access this dashboard.")
+    st.stop()
+
+# Add welcome message at the top of the sidebar
+if st.session_state.get("authenticated"):
+    st.sidebar.markdown(f"<div class='welcome-header'>Welcome, {st.session_state.get('username', 'User')}</div>", unsafe_allow_html=True)
+    
+    # Navigation buttons with unique keys
+    if st.sidebar.button("Home", key="home_nav_deductions"):
+        st.switch_page("Home.py")
+    
+    if st.sidebar.button("Escalations Dashboard", key="escalations_nav_deductions"):
+        st.switch_page("pages/01_Escalations_Dashboard.py")
+
+# Apply the current theme
+apply_theme(st.session_state['theme'])
+
+# Enhanced title and description with premium styling
+st.markdown("""
+<div style="background: linear-gradient(135deg, #f8f9fa, #ffffff); padding: 2rem; border-radius: 0.75rem; border-left: 5px solid #3949AB; margin-bottom: 2rem; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+    <h1 style="color: #2E4374; margin-top: 0; font-weight: 700; font-size: 2.2rem; margin-bottom: 0.75rem; font-family: 'Segoe UI', Arial, sans-serif;">Deductions Escalations Dashboard</h1>
+    <p style="color: #555; font-size: 1.15rem; margin-bottom: 0; font-family: 'Segoe UI', Arial, sans-serif;">Comprehensive analytics and monitoring for deduction-related escalations</p>
+</div>
+""", unsafe_allow_html=True)
+
+# Theme selector in sidebar
+with st.sidebar:
+    st.title("Settings")
+    selected_theme = st.selectbox(
+        "Select Theme",
+        options=list(THEMES.keys()),
+        index=list(THEMES.keys()).index(st.session_state['theme'])
+    )
+    
+    if selected_theme != st.session_state['theme']:
+        st.session_state['theme'] = selected_theme
+        apply_theme(selected_theme)
+        st.rerun()
+
+# Premium file uploader section with enhanced design
+st.container()
+
+# File uploader with improved styling
+uploaded_file = st.file_uploader("Upload Deductions Escalations Report", 
+                                type=["csv", "xlsx", "xls"], 
+                                help="Upload a CSV or Excel file with deductions escalation data")
+
+# Initialize session state for storing the dataframe
+if 'deductions_df' not in st.session_state:
+    st.session_state['deductions_df'] = None
+    st.session_state['file_processed'] = False
+
+# Add a debug section to track execution
+st.sidebar.markdown("### Debug Information")
+show_debug = st.sidebar.checkbox("Show Debug Info", value=False)
+debug_container = st.sidebar.container()
+
+def debug_print(message):
+    """Print debug messages to both console and sidebar if enabled"""
+    print(f"DEBUG: {message}")
+    if show_debug:
+        with debug_container:
+            st.write(f"DEBUG: {message}")
+
+# Process the uploaded file
+if uploaded_file is not None:
+    debug_print(f"File uploaded: {uploaded_file.name}")
+    
+    # Read the file based on its extension
+    try:
+        if uploaded_file.name.lower().endswith(('.xlsx', '.xls')):
+            df = pd.read_excel(uploaded_file, engine='openpyxl')
+        else:
+            df = pd.read_csv(uploaded_file)
+            
+        debug_print(f"Initial columns: {df.columns.tolist()}")
+        
+        # Standardize column names
+        column_mapping = {
+            'Provider': ['Provider', 'provider', 'PROVIDER', 'Service Provider'],
+            'Amount': ['Amount', 'amount', 'AMOUNT', 'Deduction Amount', 'DeductionAmount', 'Deduction_Amount'],
+            'Failed Amount': ['Failed Amount', 'Failed_Amount', 'failed_amount', 'FAILED_AMOUNT', 'Failed Deduction', 'FailedDeduction'],
+            'Status': ['Status', 'status', 'STATUS', 'Deduction Status'],
+            'Employer': ['Employer', 'employer', 'EMPLOYER', 'Client', 'client', 'CLIENT'],
+            'Deduction Submission Date': ['Deduction Submission Date', 'Deduction_Submission_Date', 'deduction_submission_date', 'Submission Date', 'submission_date', 'SUBMISSION_DATE'],
+            'Transactions': ['Transactions', 'transactions', 'TRANSACTIONS', 'Number of Transactions', 'No. of Transactions'],
+            'Environment': ['Environment', 'environment', 'ENVIRONMENT', 'ENV', 'env'],
+            'Reason': ['Reason', 'reason', 'REASON', 'Failure Reason', 'failure_reason'],
+            'Method': ['Method', 'method', 'METHOD', 'Payment Method', 'payment_method']
+        }
+        
+        # Create a mapping of all possible column names to standard names
+        reverse_mapping = {}
+        for standard_name, variants in column_mapping.items():
+            for variant in variants:
+                reverse_mapping[variant.lower()] = standard_name
+        
+        # Rename columns using the mapping
+        df = df.rename(columns=lambda x: reverse_mapping.get(str(x).strip().lower(), x))
+        
+        # Log the standardized columns for debugging
+        debug_print(f"Standardized columns: {df.columns.tolist()}")
+        
+        # Check for required columns
+        required_columns = ['Provider', 'Amount']
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        
+        if missing_columns:
+            st.error(f"Error: The uploaded file is missing required columns: {', '.join(missing_columns)}. Please ensure your file contains these columns.")
+            st.session_state['file_processed'] = False
+            st.stop()
+            
+        # Store the processed dataframe in session state
+        st.session_state['deductions_df'] = df
+        st.session_state['last_processed_file'] = uploaded_file.name
+        st.session_state['file_processed'] = True
+        debug_print(f"Processed dataframe with {len(df)} rows and {len(df.columns)} columns")
+        
+    except Exception as e:
+        st.error(f"Error processing file: {str(e)}")
+        st.session_state['file_processed'] = False
+        st.stop()
+
+# Check if we have processed data to display
+if 'deductions_df' in st.session_state and not st.session_state['deductions_df'].empty and st.session_state.get('file_processed', False):
+    df = st.session_state['deductions_df']
+    debug_print(f"Displaying dashboard with {len(df)} records")
+    debug_print(f"Available columns: {df.columns.tolist()}")
+else:
+    # Simple message when no file is uploaded or processed
+    st.info("Please upload a deductions escalations file to view the dashboard.")
+    # Ensure df is always a DataFrame to prevent errors
+    df = pd.DataFrame()
+    st.stop()  # Stop execution if no file is uploaded
+
+# Create premium styled tabs for different views with improved organization
+st.markdown("""
+<style>
+    /* Premium tab styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #e6e9ef;
+        margin-bottom: 1.5rem;
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        height: 3.5rem;
+        white-space: pre-wrap;
+        background-color: transparent;
+        border: none !important;
+        color: #555;
+        font-weight: 500;
+        padding: 0 1.75rem;
+        position: relative;
+        transition: all 0.3s ease;
+        font-family: 'Segoe UI', Arial, sans-serif;
+        font-size: 1.05rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .stTabs [aria-selected="true"] {
+        color: #3949AB;
+        font-weight: 600;
+        background-color: transparent;
+    }
+    
+    .stTabs [aria-selected="true"]::after {
+        content: "";
+        position: absolute;
+        bottom: -1px;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(to right, #3949AB, #5C6BC0);
+        border-radius: 4px 4px 0 0;
+    }
+    
+    /* Premium metric styling */
+    [data-testid="stMetricValue"] {
+        font-size: 2rem !important;
+        font-weight: 700 !important;
+        color: #2E4374 !important;
+        font-family: 'Segoe UI', Arial, sans-serif !important;
+    }
+    
+    [data-testid="stMetricLabel"] {
+        font-size: 1rem !important;
+        font-weight: 500 !important;
+        color: #666 !important;
+        font-family: 'Segoe UI', Arial, sans-serif !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.5px !important;
+    }
+    
+    [data-testid="stMetricDelta"] {
+        font-size: 0.95rem !important;
+        font-weight: 500 !important;
+        font-family: 'Segoe UI', Arial, sans-serif !important;
+    }
+    
+    /* Section headers */
+    .section-header {
+        color: #2E4374;
+        font-weight: 600;
+        font-size: 1.4rem;
+        margin: 1.5rem 0 1rem 0;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid #f0f2f6;
+        font-family: 'Segoe UI', Arial, sans-serif;
+    }
+    
+    /* Filter section styling */
+    .filter-container {
+        background: white;
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        border: 1px solid #f0f2f6;
+        margin-bottom: 1.5rem;
+    }
+    
+    /* Data table styling */
+    .dataframe {
+        border-collapse: collapse;
+        width: 100%;
+        border: none;
+        font-family: 'Segoe UI', Arial, sans-serif;
+    }
+    
+    .dataframe th {
+        background-color: #f8f9fa;
+        color: #2E4374;
+        font-weight: 600;
+        text-align: left;
+        padding: 0.75rem 1rem;
+        border-bottom: 2px solid #e6e9ef;
+    }
+    
+    .dataframe td {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #f0f2f6;
+        color: #555;
+    }
+    
+    .dataframe tr:hover td {
+        background-color: #f8f9fa;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+# Streamlined tab structure with clear purpose for each tab
+tab1, tab2, tab3 = st.tabs(["📊 Dashboard Overview", "🔍 Detailed Analysis", "📋 Data Explorer"])
+
+with tab1:  # Overview Tab
+    st.markdown("""
+    <div style="margin-bottom: 1.5rem; border-bottom: 1px solid #f0f0f0; padding-bottom: 0.75rem;">
+        <h2 style="color: #2E4374; font-weight: 600; font-size: 1.5rem; margin: 0;">Deductions Overview</h2>
+        <p style="color: #666; margin: 0.5rem 0 0 0; font-size: 0.95rem;">Key metrics and summary of deduction activities</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Create premium metrics row with cards
+    st.markdown("""
+    <style>
+        .metric-card {
+            background: white;
+            border-radius: 0.5rem;
+            padding: 1.25rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            border: 1px solid #f0f2f6;
+            height: 100%;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.markdown("<div class='metric-card'>", unsafe_allow_html=True)
+        try:
+            # Clean and convert 'Amount' and 'Failed Amount' columns to numeric
+            df["Amount"] = pd.to_numeric(
+                df["Amount"].astype(str).str.replace(r'[^\d.-]', '', regex=True),
+                errors='coerce'
+            )
+            total_deductions = df["Amount"].sum()
+            formatted_amount = f"${total_deductions:,.2f}" if pd.notna(total_deductions) else "N/A"
+            st.metric("Total Deduction Amount", formatted_amount)
+        except Exception as e:
+            st.error(f"Error processing amounts: {str(e)}")
+            st.metric("Total Deduction Amount", "N/A")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with col2:
+        st.markdown("<div class='metric-card'>", unsafe_allow_html=True)
+        try:
+            df["Failed Amount"] = pd.to_numeric(
+                df["Failed Amount"].astype(str).str.replace(r'[^\d.-]', '', regex=True),
+                errors='coerce'
+            )
+            failed_amount = df["Failed Amount"].sum()
+            if pd.notna(failed_amount) and pd.notna(total_deductions) and total_deductions > 0:
+                failure_rate = (float(failed_amount) / float(total_deductions)) * 100
+            else:
+                failure_rate = 0
+            st.metric(
+                "Failed Amount", 
+                f"${float(failed_amount):,.2f}" if pd.notna(failed_amount) else "$0.00",
+                f"{failure_rate:.1f}%" if pd.notna(failure_rate) else "0.0%"
+            )
+        except Exception as e:
+            st.error(f"Error calculating failed amount: {str(e)}")
+            st.metric("Failed Amount", "$0.00", "0.0%")
+        st.markdown("</div>", unsafe_allow_html=True)
+    
+    with col3:
+        st.markdown("<div class='metric-card'>", unsafe_allow_html=True)
+        try:
+            total_transactions = df["Transactions"].sum()
+            st.metric("Total Transactions", f"{total_transactions:,}")
+        except Exception as e:
+            st.error(f"Error calculating total transactions: {str(e)}")
+            st.metric("Total Transactions", "N/A")
+        st.markdown("</div>", unsafe_allow_html=True)
+    
+    with col4:
+        st.markdown("<div class='metric-card'>", unsafe_allow_html=True)
+        try:
+            # Convert to string first to handle various data types
+            df["Successful via Automation"] = df["Successful via Automation"].astype(str)
+            success_rate = df["Successful via Automation"].str.lower().isin(["yes", "true", "y", "1"]).mean() * 100
+            st.metric("Automation Success Rate", f"{success_rate:.1f}%")
+        except Exception as e:
+            st.error(f"Error calculating automation success rate: {str(e)}")
+            st.metric("Automation Success Rate", "N/A")
+        st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Premium chart section with card styling - moved outside of columns
+    st.markdown("""
+    <style>
+        .chart-card {
+            background: white;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            border: 1px solid #f0f2f6;
+            margin: 1.5rem 0;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .chart-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        }
+        .chart-title {
+            color: #2E4374;
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid #f0f2f6;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    try:
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("<div class='chart-card'>", unsafe_allow_html=True)
+            st.markdown("<h3 class='chart-title'>Deduction Status Distribution</h3>", unsafe_allow_html=True)
+            status_counts = df["Status"].value_counts().reset_index()
+            status_counts.columns = ["Status", "Count"]
+            
+            fig_status = px.pie(
+                status_counts, 
+                values="Count", 
+                names="Status", 
+                title="",
+                hole=0.5,
+                color_discrete_sequence=px.colors.qualitative.Set2
+            )
+            fig_status.update_traces(textposition='inside', textinfo='percent+label')
+            fig_status.update_layout(
+                margin=dict(t=30, b=0, l=0, r=0),
+                legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5),
+                font=dict(family="Segoe UI, Arial, sans-serif"),
+                hoverlabel=dict(font_size=14, font_family="Segoe UI, Arial, sans-serif"),
+                plot_bgcolor="rgba(0,0,0,0)"
+            )
+            st.plotly_chart(fig_status, use_container_width=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown("<div class='chart-card'>", unsafe_allow_html=True)
+            st.markdown("<h3 class='chart-title'>Top Providers by Amount</h3>", unsafe_allow_html=True)
+            provider_amounts = df.groupby("Provider")["Amount"].sum().reset_index().sort_values("Amount", ascending=False).head(5)
+            
+            fig_providers = px.bar(
+                provider_amounts,
+                x="Provider",
+                y="Amount",
+                title="",
+                color="Amount",
+                color_continuous_scale="Blues",
+                text_auto='.2s'
+            )
+            fig_providers.update_traces(
+                marker_line_width=0,
+                marker_line_color="white",
+                hovertemplate="<b>%{x}</b><br>Amount: $%{y:,.2f}<extra></extra>"
+            )
+            fig_providers.update_layout(
+                margin=dict(t=30, b=50, l=0, r=0),
+                font=dict(family="Segoe UI, Arial, sans-serif"),
+                hoverlabel=dict(font_size=14, font_family="Segoe UI, Arial, sans-serif"),
+                plot_bgcolor="rgba(0,0,0,0)",
+                xaxis=dict(title="", tickangle=-45),
+                yaxis=dict(title="Amount ($)", gridcolor="#f0f2f6"),
+                coloraxis_showscale=False
+            )
+            st.plotly_chart(fig_providers, use_container_width=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+    except Exception as e:
+        st.error(f"Error generating charts: {str(e)}")
+    
+    # Premium time series visualization
+    st.markdown("<div class='chart-card' style='margin-top: 1.5rem;'>", unsafe_allow_html=True)
+    st.markdown("<h3 class='chart-title'>Deduction Trends Over Time</h3>", unsafe_allow_html=True)
+    
+    # Ensure 'Deduction Submission Date' is in datetime format
+    try:
+        df["Deduction Submission Date"] = pd.to_datetime(df["Deduction Submission Date"], errors='coerce')
+        
+        # Group by submission date for total amount
+        time_series = df.groupby(df["Deduction Submission Date"].dt.date)["Amount"].sum().reset_index()
+        time_series.columns = ["Date", "Amount"]
+        
+        # Group by submission date for failed amount
+        failed_series = df.groupby(df["Deduction Submission Date"].dt.date)["Failed Amount"].sum().reset_index()
+        failed_series.columns = ["Date", "Failed Amount"]
+            
+    except Exception as e:
+        st.error(f"Error processing dates: {str(e)}")
+        # Create empty dataframes with the expected structure if there's an error
+        time_series = pd.DataFrame(columns=["Date", "Amount"])
+        failed_series = pd.DataFrame(columns=["Date", "Failed Amount"])
+    
+    # Create a more sophisticated time series chart
+    fig_time = go.Figure()
+    
+    # Add total amount line
+    fig_time.add_trace(go.Scatter(
+        x=time_series["Date"],
+        y=time_series["Amount"],
+        mode='lines+markers',
+        name='Total Amount',
+        line=dict(color='#4e79a7', width=3),
+        marker=dict(size=8, color='#4e79a7', line=dict(width=1, color='white')),
+        hovertemplate='<b>%{x}</b><br>Total: $%{y:,.2f}<extra></extra>'
+    ))
+    
+    # Date range filter
+    date_min = df["Deduction Submission Date"].min().date()
+    date_max = df["Deduction Submission Date"].max().date()
+    
+    selected_date_range = st.date_input(
+        "Date Range",
+        value=(date_min, date_max),
+        min_value=date_min,
+        max_value=date_max
+    )
+    
+    # Ensure we have a start and end date
+    if len(selected_date_range) == 2:
+        start_date, end_date = selected_date_range
+        
+        # Filter data based on all selections
+        filtered_df = df[
+            (df["Environment"].isin(selected_environment)) &
+            (df["Status"].isin(selected_status)) &
+            (df["Provider"].isin(selected_provider)) &
+            (df["Deduction Submission Date"].dt.date >= start_date) &
+            (df["Deduction Submission Date"].dt.date <= end_date)
+        ]
+        
+        # Show filtered data count
+        st.markdown(f"### Showing {len(filtered_df)} records")
+        
+        if not filtered_df.empty:
+            # Failure analysis
+            st.markdown("<h3 class='sub-title'>Failure Analysis</h3>", unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
+        
+        # Generate insights based on the data
+        # Calculate key metrics
+        total_deductions = df["Amount"].sum()
+        failed_amount = df["Failed Amount"].sum()
+        failure_rate = (failed_amount / total_deductions) * 100 if total_deductions > 0 else 0
+
+        # Safely calculate top provider
+        try:
+            provider_sums = df.groupby("Provider")["Amount"].sum().reset_index()
+            provider_sums = provider_sums.sort_values("Amount", ascending=False)
+            if not provider_sums.empty:
+                top_provider = str(provider_sums.iloc[0]["Provider"])
+                top_provider = ''.join(c if ord(c) >= 32 else ' ' for c in top_provider).strip()
+            else:
+                top_provider = "N/A"
+        except Exception as e:
+            top_provider = "Not Available"
+            print(f"Error calculating top provider: {str(e)}")
+
+        # Safely calculate top failure reason
+        try:
+            if "Reason" in df.columns:
+                reason_counts = df["Reason"].value_counts()
+                if not reason_counts.empty:
+                    top_reason = str(reason_counts.index[0])
+                    top_reason = ''.join(c if ord(c) >= 32 else ' ' for c in top_reason).strip()
+                else:
+                    top_reason = "N/A"
+            else:
+                top_reason = "N/A"
+        except Exception as e:
+            top_reason = "Not Available"
+            print(f"Error calculating top reason: {str(e)}")
+
+        # Display insights in a premium card layout
+        col1, col2 = st.columns(2)
+
+        with col1:
+            # Format values safely
+            formatted_total = f"${total_deductions:,.2f}" if pd.notna(total_deductions) else "$0.00"
+            formatted_failed = f"${failed_amount:,.2f}" if pd.notna(failed_amount) else "$0.00"
+            formatted_rate = f"{failure_rate:.2f}%" if pd.notna(failure_rate) else "0.00%"
+            
+            st.markdown(f"""
+                    <style>
+                        .insight-item {{
+                            display: flex;
+                
+                <div class="insight-item">
+                    <div class="insight-icon">📊</div>
+                    <div class="insight-content">
+                        <p class="insight-label">Failure Rate</p>
+                        <p class="insight-value">{formatted_rate}</p>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+            with col2:
+                # Use a safer approach with HTML escaping
+                import html
+                
+                # Escape HTML special characters in the values
+                safe_provider = html.escape(top_provider)
+                safe_reason = html.escape(top_reason)
+                
+                st.markdown(f"""
+                <div class="insight-item">
+                    <div class="insight-icon">🏆</div>
+                    <div class="insight-content">
+                        <p class="insight-label">Top Provider</p>
+                        <p class="insight-value">{safe_provider}</p>
+                    </div>
+                </div>
+                
+                <div class="insight-item">
+                    <div class="insight-icon">⚠️</div>
+                    <div class="insight-content">
+                        <p class="insight-label">Top Failure Reason</p>
+                        <p class="insight-value">{safe_reason}</p>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Recommendations section
+                st.markdown("""
+                <div style="margin-top: 1.5rem; border-top: 1px solid #f0f2f6; padding-top: 1.5rem;">
+                    <h4 style="color: #2E4374; font-weight: 600; margin-bottom: 1rem; font-size: 1.1rem;">Recommendations</h4>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Generate recommendations based on the data
+                recommendations = []
+                
+                if failure_rate > 10:
+                    recommendations.append("High failure rate detected. Review deduction processes for improvements.")
+                
+                if top_reason != "N/A" and top_reason != "":
+                    recommendations.append(f"Address the most common failure reason: '{top_reason}'")
+                
+                if top_provider != "N/A" and top_provider != "":
+                    provider_failure = df[df["Provider"] == top_provider]["Failed Amount"].sum()
+                    if provider_failure > 0:
+                        recommendations.append(f"Review relationship with provider '{top_provider}' to reduce failed amounts.")
+            
+            # Display recommendations in a premium format
+            if recommendations:
+                for i, rec in enumerate(recommendations, 1):
+                    st.markdown(f"""
+                    <div style="display: flex; align-items: flex-start; margin-bottom: 0.75rem;">
+                        <div style="background-color: #3949AB; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 0.75rem; font-size: 0.8rem; flex-shrink: 0;">{i}</div>
+                        <div style="color: #555; font-size: 1rem;">{rec}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            else:
+                st.info("No specific recommendations at this time.")
+        
+            st.markdown("</div>", unsafe_allow_html=True)
+            
+            with tab2:  # Detailed Analysis Tab
+                st.markdown("<h2 class='sub-title'>Detailed Analysis</h2>", unsafe_allow_html=True)
+                
+                # Filters
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    selected_environment = st.multiselect(
+                        "Environment", 
+                        options=sorted(df["Environment"].unique()),
+                        default=sorted(df["Environment"].unique())
+                    )
+                
+                with col2:
+                    selected_status = st.multiselect(
+                        "Status", 
+                        options=sorted(df["Status"].unique()),
+                        default=sorted(df["Status"].unique())
+                    )
+                
+                with col3:
+                    selected_provider = st.multiselect(
+                        "Provider", 
+                        options=sorted(df["Provider"].unique()),
+                        default=sorted(df["Provider"].unique())
+                    )
+                
+                # Date range filter
+                date_min = df["Deduction Submission Date"].min().date()
+                date_max = df["Deduction Submission Date"].max().date()
+                
+                selected_date_range = st.date_input(
+                    "Date Range",
+                    value=(date_min, date_max),
+                    min_value=date_min,
+                    max_value=date_max
+                )
+                
+                # Ensure we have a start and end date
+                if len(selected_date_range) == 2:
+                    start_date, end_date = selected_date_range
+                    
+                    # Filter data based on all selections
+                    filtered_df = df[
+                        (df["Environment"].isin(selected_environment)) &
+                        (df["Status"].isin(selected_status)) &
+                        (df["Provider"].isin(selected_provider)) &
+                        (df["Deduction Submission Date"].dt.date >= start_date) &
+                        (df["Deduction Submission Date"].dt.date <= end_date)
+                    ]
+                    
+                    # Show filtered data count
+                    st.markdown(f"### Showing {len(filtered_df)} records")
+                    
+                    if not filtered_df.empty:
+                        # Failure analysis
+                        st.markdown("<h3 class='sub-title'>Failure Analysis</h3>", unsafe_allow_html=True)
+                        
+                        # Reasons for failure
+                        reason_counts = filtered_df["Reason"].value_counts().reset_index()
+                        reason_counts.columns = ["Reason", "Count"]
+                        
+                        if not reason_counts.empty:
+                            fig_reasons = px.bar(
+                                reason_counts.head(10),
+                                x="Count",
+                                y="Reason",
+                                title="Top 10 Failure Reasons",
+                                orientation='h',
+                                color="Count",
+                                color_continuous_scale=px.colors.sequential.Reds
+                            )
+                            fig_reasons.update_layout(yaxis={'categoryorder':'total ascending'})
+                            st.plotly_chart(fig_reasons, use_container_width=True)
+                        else:
+                            st.info("No failure reasons found in the filtered data.")
+                        
+                        # Employer analysis
+                        st.markdown("<h3 class='sub-title'>Top Employers</h3>", unsafe_allow_html=True)
+                        
+                        employer_data = filtered_df.groupby("Employer")["Amount"].sum().reset_index().sort_values("Amount", ascending=False).head(10)
+                        
+                        if not employer_data.empty:
+                            fig_employer = px.bar(
+                                employer_data,
+                                x="Employer",
+                                y="Amount",
+                                title="Top 10 Employers by Deduction Amount",
+                                color="Amount",
+                                color_continuous_scale=px.colors.sequential.Greens
+                            )
+                            st.plotly_chart(fig_employer, use_container_width=True)
+                        else:
+                            st.info("No employer data found in the filtered selection.")
+                        
+                        # Mode analysis
+                        st.markdown("<h3 class='sub-title'>Deduction Modes</h3>", unsafe_allow_html=True)
+                        
+                        mode_data = filtered_df.groupby("Mode")[["Amount", "Failed Amount"]].sum().reset_index()
+                        
+                        if not mode_data.empty:
+                            # Calculate success amount
+                            mode_data["Success Amount"] = mode_data["Amount"] - mode_data["Failed Amount"]
+                            
+                            # Melt the dataframe for stacked bar chart
+                            mode_melted = pd.melt(
+                                mode_data,
+                                id_vars=["Mode"],
+                                value_vars=["Success Amount", "Failed Amount"],
+                                var_name="Status",
+                                value_name="Amount_Value"
+                            )
+                            
+                            fig_mode = px.bar(
+                                mode_melted,
+                                x="Mode",
+                                y="Amount_Value",
+                                color="Status",
+                                title="Deduction Amount by Mode and Status",
+                                barmode="stack",
+                                color_discrete_map={
+                                    "Success Amount": "#4CAF50",
+                                    "Failed Amount": "#F44336"
+                                }
+                            )
+                            st.plotly_chart(fig_mode, use_container_width=True)
+                        else:
+                            st.info("No mode data found in the filtered selection.")
+                    else:
+                        st.warning("No data matches your filter criteria. Please adjust your filters.")
+                else:
+                    st.warning("Please select both start and end dates.")
+            
+            with tab3:  # Data Explorer Tab
+                st.markdown("""
+                <div style="margin-bottom: 1.5rem; border-bottom: 1px solid #f0f0f0; padding-bottom: 0.75rem;">
+                    <h2 style="color: #2E4374; font-weight: 600; font-size: 1.5rem; margin: 0;">Interactive Data Explorer</h2>
+                    <p style="color: #666; margin: 0.5rem 0 0 0; font-size: 0.95rem;">Search, filter, and analyze your deductions data</p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Premium filter section
+                st.markdown("<div class='filter-container'>", unsafe_allow_html=True)
+                
+                # More comprehensive filters for data explorer
+                col1, col2, col3 = st.columns([2,1,1])
+                
+                with col1:
+                    search_term = st.text_input("🔍 Search in data", "", placeholder="Search by any keyword...")
+                
+                with col2:
+                    sort_by = st.selectbox(
+                        "Sort by", 
+                        options=["Deduction Submission Date", "Amount", "Failed Amount", "Status", "Provider"]
+                    )
+                
+                with col3:
+                    sort_order = st.selectbox("Order", options=["Descending", "Ascending"])
+                
+                # Advanced filters with expander
+                with st.expander("Advanced Filters"):
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        min_amount = st.number_input("Minimum Amount", min_value=0.0, value=0.0, step=100.0)
+                        selected_status = st.multiselect(
+                            "Status",
+                            options=sorted(df["Status"].unique()),
+                            default=[]
+                        )
+                    
+                    with col2:
+                        max_amount = st.number_input("Maximum Amount", min_value=0.0, value=float(df["Amount"].max()), step=100.0)
+                        selected_provider = st.multiselect(
+                            "Provider",
+                            options=sorted(df["Provider"].unique()),
+                            default=[]
+                        )
+                
+                st.markdown("</div>", unsafe_allow_html=True)
+                
+                # Apply filters
+                filtered_explorer_df = df.copy()
+                
+                # Search filter
+                if search_term:
+                    # Search across all string columns
+                    mask = pd.Series(False, index=filtered_explorer_df.index)
+                    for col in filtered_explorer_df.select_dtypes(include=['object']).columns:
+                        mask = mask | filtered_explorer_df[col].astype(str).str.contains(search_term, case=False, na=False)
+                    filtered_explorer_df = filtered_explorer_df[mask]
+                
+                # Amount range filter
+                filtered_explorer_df = filtered_explorer_df[
+                    (filtered_explorer_df["Amount"] >= min_amount) & 
+                    (filtered_explorer_df["Amount"] <= max_amount)
+                ]
+                
+                # Status filter
+                if selected_status:
+                    filtered_explorer_df = filtered_explorer_df[filtered_explorer_df["Status"].isin(selected_status)]
+                
+                # Provider filter
+                if selected_provider:
+                    filtered_explorer_df = filtered_explorer_df[filtered_explorer_df["Provider"].isin(selected_provider)]
+                
+                # Sort the data
+                if sort_by:
+                    is_ascending = sort_order == "Ascending"
+                    filtered_explorer_df = filtered_explorer_df.sort_values(by=sort_by, ascending=is_ascending)
+                
+                # Display record count and data
+                st.markdown(f"<p style='margin-bottom: 1rem; color: #666;'><strong>{len(filtered_explorer_df)}</strong> records found</p>", unsafe_allow_html=True)
+                
+                # Enhanced data display
+                if not filtered_explorer_df.empty:
+                    # Create a more user-friendly view of the data
+                    display_cols = [
+                        "Deduction Submission Date", "Provider", "Employer", 
+                        "Amount", "Failed Amount", "Status", "Reason"
+                    ]
+                    
+                    # Ensure all display columns exist in the dataframe
+                    display_cols = [col for col in display_cols if col in filtered_explorer_df.columns]
+                    
+                    # Format the date column
+                    if "Deduction Submission Date" in display_cols:
+                        filtered_explorer_df["Deduction Submission Date"] = filtered_explorer_df["Deduction Submission Date"].dt.strftime("%Y-%m-%d")
+                    
+                    # Display the data with enhanced styling
+                    st.dataframe(
+                        filtered_explorer_df[display_cols],
+                        height=400,
+                        use_container_width=True
+                    )
+                    
+                    # Premium export options
+                    col1, col2 = st.columns([3, 1])
+                    with col2:
+                        st.markdown("""
+                        <style>
+                            div[data-testid="stDownloadButton"] button {
+                                background-color: #3949AB;
+                                color: white;
+                                border-radius: 4px;
+                                padding: 0.5rem 1rem;
+                                font-weight: 500;
+                                border: none;
+                                width: 100%;
+                                transition: all 0.3s ease;
+                            }
+                            div[data-testid="stDownloadButton"] button:hover {
+                                background-color: #303F9F;
+                                box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+                            }
+                        </style>
+                        """, unsafe_allow_html=True)
+                        
+                        # CSV Export
+                        csv = filtered_explorer_df.to_csv(index=False).encode('utf-8')
+                        st.download_button(
+                            label="📥 Export as CSV",
+                            data=csv,
+                            file_name="deductions_export.csv",
+                            mime="text/csv",
+                            help="Download the filtered data as a CSV file",
+                            use_container_width=True
+                        )
+                        
+                        # Excel Export
+                        output = BytesIO()
+                        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                            filtered_explorer_df.to_excel(writer, sheet_name='Deductions', index=False)
+                        
+                        excel_data = output.getvalue()
+                        st.download_button(
+                            label="📊 Export as Excel",
+                            data=excel_data,
+                            file_name="deductions_export.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            help="Download the filtered data as an Excel file",
+                            use_container_width=True
+                        )
+            
+                    # Display recommendations
+                    for i, rec in enumerate(recommendations):
+                        st.markdown(f"**{i + 1}. {rec}**")
+                    
+                    # Time-based analysis
+                    st.markdown("<h3 class='sub-title'>Time-Based Analysis</h3>", unsafe_allow_html=True)
+                    
+                    # Date analysis with robust error handling
+                    try:
+                        # First verify that the date column exists and has valid dates
+                        if 'Deduction Submission Date' in df.columns and not df['Deduction Submission Date'].isna().all():
+                            # Make a safe copy of the dataframe for date analysis
+                            date_df = df.copy()
+                            
+                            # Ensure date column is properly formatted
+                            date_df['Deduction Submission Date'] = pd.to_datetime(date_df['Deduction Submission Date'], errors='coerce')
+                            
+                            # Drop rows with invalid dates
+                            date_df = date_df.dropna(subset=['Deduction Submission Date'])
+                            
+                            if len(date_df) > 0:
+                                # Day of week analysis
+                                date_df['Day of Week'] = date_df['Deduction Submission Date'].dt.day_name()
+                                day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+                                date_df['Day of Week'] = pd.Categorical(date_df['Day of Week'], categories=day_order, ordered=True)
+                                
+                                day_counts = date_df.groupby('Day of Week')['Amount'].sum().reset_index()
+                                
+                                fig_day = px.bar(
+                                    day_counts,
+                                    x='Day of Week',
+                                    y='Amount',
+                                    title='Deduction Amount by Day of Week',
+                                    color='Amount',
+                                    color_continuous_scale=px.colors.sequential.Viridis
+                                )
+                                st.plotly_chart(fig_day, use_container_width=True)
+                                
+                                # Month analysis if data spans multiple months
+                                if date_df['Deduction Submission Date'].dt.month.nunique() > 1:
+                                    date_df['Month'] = date_df['Deduction Submission Date'].dt.month_name()
+                                    month_order = ['January', 'February', 'March', 'April', 'May', 'June', 
+                                                  'July', 'August', 'September', 'October', 'November', 'December']
+                                    date_df['Month'] = pd.Categorical(date_df['Month'], categories=month_order, ordered=True)
+                                    
+                                    month_counts = date_df.groupby('Month')['Amount'].sum().reset_index()
+                                    
+                                    fig_month = px.line(
+                                        month_counts,
+                                        x='Month',
+                                        y='Amount',
+                                        title='Deduction Amount by Month',
+                                        markers=True,
+                                        color_discrete_sequence=[THEMES[st.session_state['theme']]['accent_color']]
+                                    )
+                                    st.plotly_chart(fig_month, use_container_width=True)
+                            else:
+                                st.warning("No valid dates found for time-based analysis.")
+                        else:
+                            st.warning("Date column is missing or contains no valid data.")
+                    except Exception as date_error:
+                        # Log the error but continue with other visualizations
+                        print(f"DEBUG - Error in date processing: {repr(date_error)}")
+                        st.warning("Unable to process date information. Some visualizations are not available.")
+                    
+                    # Continue with other visualizations that don't depend on dates
+                    pass
+                else:
+                    st.warning("Not enough data to generate insights. Please adjust your filters.")
+            
+                # Check if we have a valid error message
+                error_details = str(e) if 'e' in locals() or 'e' in globals() else "Unknown error occurred"
+                error_type = type(e).__name__ if 'e' in locals() or 'e' in globals() else "UnknownError"
+                
+                # Log the full error for debugging
+                print(f"DEBUG - Error processing file: {error_details}")
+                print(f"DEBUG - Error type: {error_type}")
+                
+                # Show a more user-friendly error message
+                st.error("Error processing file. Please check your data format and try again.")
+                
+                # Add detailed error information in an expander for troubleshooting
+                with st.expander("Technical Details"):
+                    st.code(f"Error type: {error_type}\nError details: {error_details}")
+                    st.markdown("If this error persists, please ensure your file:")
+                    st.markdown("1. Has all the required columns")
+                    st.markdown("2. Contains valid data formats")
+                    st.markdown("3. Has no special characters or formatting issues")
+        
+# Main content area with consistent layout
+st.markdown("""
+<style>
+    /* Reset Streamlit default styles */
+    .main {
+        padding: 0 !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+    }
+    
+    /* Main container */
+    .main-container {
+        max-width: 1800px !important;
+        margin: 0 auto !important;
+        padding: 2rem !important;
+        width: 100% !important;
+        box-sizing: border-box;
+    }
+    
+    /* Fix Streamlit tabs */
+    .stTabs [data-baseweb="tab-list"] {
+        padding: 0 2rem;
+        background: #f8f9fa;
+        border-bottom: 1px solid #e6e9ef;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        padding: 1rem 2rem;
+        margin: 0;
+        border-radius: 0;
+    }
+    
+    .stTabs [aria-selected="true"] {
+        background: white;
+        border-bottom: 2px solid #2E4374;
+    }
+    
+    /* Card styling */
+    .card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    /* Section headers */
+    .section-header {
+        color: #2E4374;
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #e6e9ef;
+    }
+    
+    /* Metric cards */
+    .metric-card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        padding: 1rem;
+        height: 100%;
+    }
+    
+    .metric-title {
+        font-size: 0.9rem;
+        color: #666;
+        margin-bottom: 0.5rem;
+    }
+    
+    .metric-value {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #2E4374;
+    }
+    
+    /* Chart containers */
+    .chart-container {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# Check if we have processed data to display
+if 'deductions_df' in st.session_state and not st.session_state['deductions_df'].empty and st.session_state.get('file_processed', False):
+    df = st.session_state['deductions_df']
+    debug_print(f"Displaying dashboard with {len(df)} records")
+    debug_print(f"Available columns: {df.columns.tolist()}")
+else:
+    # Simple message when no file is uploaded
+    st.info("Please upload a deductions escalations file to view the dashboard.")
+    # Ensure df is always a DataFrame
+    if 'df' not in locals() or not isinstance(df, pd.DataFrame):
+        df = pd.DataFrame()
+    
+    # Add a simple help section with file format information
+    with st.expander("File Format Information"):
+        st.markdown("""
+        Your CSV or Excel file should include the following columns:
+        - Environment
+        - Deduction Submission Date
+        - BranchID
+        - Employer
+        - DepartmentName
+        - Pay Day
+        - Provider
+        - Method
+        - Transactions
+        - Amount
+        - Failed Amount
+        - Failed Department
+        - Status
+        - Escalated To
+        - Successful via Automation
+        - Reason
+        - Remarks
+        - Mode
+        - Task Link / Email Subject
+        """)
+
+if __name__ == "__main__":
+    st.set_page_config(
+        page_title="Deductions Escalations",
+        page_icon="📊",
+        layout="wide",
+        initial_sidebar_state="expanded"
+    )
+    
+    # Apply the selected theme
+    apply_theme(st.session_state.get('theme', 'Default'))

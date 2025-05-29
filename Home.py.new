@@ -1,0 +1,852 @@
+import streamlit as st
+import os
+import json
+import base64
+from PIL import Image
+
+# Import the background image module
+from assets.background import get_background_style
+
+# File to store credentials
+CREDENTIALS_FILE = "credentials.json"
+
+# Load credentials
+def load_credentials():
+    if os.path.exists(CREDENTIALS_FILE):
+        try:
+            with open(CREDENTIALS_FILE, "r") as file:
+                data = json.load(file)
+                if "admin" in data and "DMAT" in data:
+                    return data
+        except json.JSONDecodeError:
+            pass
+
+    default_creds = {
+        "admin": {"username": "admin", "password": "dmat123461"},
+        "DMAT": {"username": "DMAT", "password": "payactiv123461"}
+    }
+    save_credentials(default_creds)
+    return default_creds
+
+# Save credentials
+def save_credentials(credentials):
+    with open(CREDENTIALS_FILE, "w") as file:
+        json.dump(credentials, file, indent=4)
+
+# Define themes
+THEMES = {
+    "Default": {
+        "primary_color": "#1E88E5",
+        "background_color": "#FFFFFF",
+        "text_color": "#424242",
+        "accent_color": "#FFC107",
+        "secondary_color": "#4CAF50",
+        "font": "sans-serif"
+    },
+    "Dark": {
+        "primary_color": "#2962FF",
+        "background_color": "#121212",
+        "text_color": "#E0E0E0",
+        "accent_color": "#FF6D00",
+        "secondary_color": "#00C853",
+        "font": "sans-serif"
+    },
+    "Corporate": {
+        "primary_color": "#0D47A1",
+        "background_color": "#F5F5F5",
+        "text_color": "#212121",
+        "accent_color": "#E65100",
+        "secondary_color": "#2E7D32",
+        "font": "serif"
+    }
+}
+
+# Apply theme
+def apply_theme(theme_name):
+    if theme_name not in THEMES:
+        theme_name = "Default"
+    
+    theme = THEMES[theme_name]
+    
+    # Apply CSS with the selected theme
+    st.markdown(f"""
+    <style>
+        /* Global Styles */
+        .stApp {{
+            background-color: {theme["background_color"]};
+            color: {theme["text_color"]};
+            font-family: {theme["font"]};
+        }}
+        
+        /* Headers */
+        h1, h2, h3, h4, h5, h6 {{
+            color: {theme["primary_color"]};
+            font-family: {theme["font"]};
+        }}
+        
+        /* Main title */
+        .main-title {{
+            color: {theme["primary_color"]};
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            text-align: center;
+            padding: 1.5rem 1rem;
+            border-bottom: 2px solid {theme["accent_color"]};
+            background: linear-gradient(90deg, {theme["primary_color"]}10, {theme["primary_color"]}25, {theme["primary_color"]}10);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }}
+        
+        /* Sub titles */
+        .sub-title {{
+            color: {theme["primary_color"]};
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid {theme["accent_color"]}40;
+        }}
+        
+        /* Dashboard cards */
+        .dashboard-card {{
+            background: linear-gradient(145deg, {theme["background_color"]}, {theme["primary_color"]}08);
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            border: 1px solid {theme["primary_color"]}15;
+            margin-bottom: 1.5rem;
+        }}
+        
+        .dashboard-card:hover {{
+            transform: translateY(-5px);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.15);
+            border-color: {theme["primary_color"]}30;
+        }}
+        
+        .dashboard-card-title {{
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: {theme["primary_color"]};
+            margin-bottom: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }}
+        
+        .dashboard-card-description {{
+            color: {theme["text_color"]};
+            margin-bottom: 1.8rem;
+            flex-grow: 1;
+            font-size: 1.1rem;
+            line-height: 1.6;
+        }}
+        
+        .dashboard-card-link {{
+            display: inline-block;
+            background-color: {theme["primary_color"]};
+            color: white;
+            padding: 0.7rem 1.5rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            text-align: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px {theme["primary_color"]}40;
+            width: 100%;
+        }}
+        
+        .dashboard-card-link:hover {{
+            background-color: {theme["accent_color"]};
+            box-shadow: 0 6px 12px {theme["accent_color"]}40;
+            transform: translateY(-2px);
+        }}
+        
+        /* Buttons */
+        .stButton button {{
+            background-color: {theme["primary_color"]};
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0.7rem 1.5rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px {theme["primary_color"]}30;
+        }}
+        
+        .stButton button:hover {{
+            background-color: {theme["accent_color"]};
+            color: white;
+            box-shadow: 0 6px 12px {theme["accent_color"]}30;
+            transform: translateY(-2px);
+        }}
+        
+        /* Sidebar */
+        .css-1d391kg {{
+            background-color: {theme["primary_color"]}15;
+        }}
+        
+        /* Section styling */
+        .section {{
+            background-color: {theme["background_color"]};
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            border: 1px solid {theme["primary_color"]}15;
+        }}
+        
+        /* Feature list */
+        .feature-list {{
+            list-style-type: none;
+            padding-left: 1rem;
+        }}
+        
+        .feature-list li {{
+            position: relative;
+            padding-left: 1.5rem;
+            margin-bottom: 0.8rem;
+            line-height: 1.6;
+        }}
+        
+        .feature-list li:before {{
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: {theme["secondary_color"]};
+            font-weight: bold;
+        }}
+        
+        /* Stats counter */
+        .stats-container {{
+            display: flex;
+            justify-content: space-around;
+            margin: 2rem 0;
+            flex-wrap: wrap;
+        }}
+        
+        .stat-item {{
+            text-align: center;
+            padding: 1.5rem;
+            border-radius: 12px;
+            background: linear-gradient(145deg, {theme["background_color"]}, {theme["primary_color"]}08);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            margin: 0.5rem;
+            min-width: 200px;
+            border: 1px solid {theme["primary_color"]}15;
+        }}
+        
+        .stat-value {{
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: {theme["primary_color"]};
+            margin-bottom: 0.5rem;
+        }}
+        
+        .stat-label {{
+            font-size: 1.1rem;
+            color: {theme["text_color"]};
+        }}
+        
+        /* Footer */
+        .footer {{
+            text-align: center;
+            padding: 2rem 0;
+            margin-top: 3rem;
+            border-top: 1px solid {theme["primary_color"]}20;
+            color: {theme["text_color"]}80;
+        }}
+    </style>
+    """, unsafe_allow_html=True)
+
+# Function to encode image as base64
+def get_base64(image_path):
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode()
+
+# Login function
+def login():
+    # Display logo on login page
+    logo_path = os.path.join(os.path.dirname(__file__), "image", "DMAT.Logo.png")
+    if os.path.exists(logo_path):
+        # Create more columns for better centering
+        col1, col2, col3 = st.columns([1, 1, 1])
+        with col2:
+            # Add vertical space before logo
+            st.markdown("<div style='height: 30px'></div>", unsafe_allow_html=True)
+            # Use Streamlit's image display instead of HTML
+            try:
+                logo_img = Image.open(logo_path)
+                st.image(logo_img, width=300, use_container_width=False)
+            except Exception as e:
+                st.error(f"Error displaying logo: {e}")
+    
+    st.markdown("""
+        <style>
+            /* Professional Enterprise Dashboard Background */
+            .stApp {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+                background: linear-gradient(135deg, #f8fafc 0%, #eef2f7 100%);
+                position: relative;
+                overflow: hidden;
+            }
+            
+            /* Subtle enterprise background elements */
+            .stApp::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%231E88E5' fill-opacity='0.05' fill-rule='evenodd'/%3E%3C/svg%3E");
+                opacity: 0.5;
+            }
+            
+            /* Professional Login Container */
+            .login-container {
+                width: 450px;
+                padding: 2.5rem;
+                border-radius: 12px;
+                background: white;
+                box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+                text-align: center;
+                margin: auto;
+                border: 1px solid #e0e0e0;
+                position: relative;
+                z-index: 10;
+            }
+            
+            /* Data visualization decorative elements */
+            .login-container::before {
+                content: '';
+                position: absolute;
+                top: -15px;
+                right: -15px;
+                width: 80px;
+                height: 80px;
+                border-radius: 50%;
+                background: linear-gradient(45deg, #1E88E5, #4CAF50);
+                opacity: 0.2;
+                z-index: -1;
+            }
+            
+            .login-container::after {
+                content: '';
+                position: absolute;
+                bottom: -10px;
+                left: -10px;
+                width: 60px;
+                height: 60px;
+                border-radius: 50%;
+                background: linear-gradient(45deg, #FFC107, #F44336);
+                opacity: 0.2;
+                z-index: -1;
+            }
+            
+            /* Company Logo */
+            .company-logo {
+                font-size: 3.5rem;
+                color: #1E88E5;
+                margin-bottom: 0.5rem;
+                text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            
+            /* Title */
+            .title {
+                font-size: 28px;
+                font-weight: 600;
+                color: #333333;
+                margin-bottom: 1rem;
+            }
+            
+            /* Subtitle */
+            .subtitle {
+                font-size: 16px;
+                color: #666666;
+                margin-bottom: 2rem;
+            }
+            
+            /* Input Labels */
+            .stTextInput label {
+                font-size: 16px;
+                font-weight: 500;
+                color: #333333;
+            }
+            
+            /* Input Fields */
+            .stTextInput>div>div>input {
+                font-size: 16px;
+                padding: 12px 16px;
+                border-radius: 8px;
+                border: 1px solid #dddddd;
+                background: #ffffff;
+                color: #333333;
+                transition: all 0.3s ease;
+            }
+            
+            .stTextInput>div>div>input:focus {
+                border-color: #1E88E5;
+                box-shadow: 0 0 0 2px rgba(30, 136, 229, 0.2);
+            }
+            
+            .stTextInput>div>div>input::placeholder {
+                color: #999999;
+            }
+            
+            /* Login Button */
+            .stButton>button {
+                width: 100%;
+                font-size: 16px;
+                font-weight: 600;
+                padding: 12px;
+                border-radius: 8px;
+                background: #1E88E5;
+                color: white;
+                border: none;
+                margin-top: 1.5rem;
+                transition: all 0.3s ease;
+                box-shadow: 0 4px 6px rgba(30, 136, 229, 0.2);
+            }
+            
+            .stButton>button:hover {
+                background: #1976D2;
+                box-shadow: 0 6px 10px rgba(30, 136, 229, 0.3);
+                transform: translateY(-2px);
+            }
+            
+            /* Error Message */
+            .error-msg {
+                color: #e53935;
+                background: #ffebee;
+                padding: 12px;
+                border-radius: 8px;
+                margin-top: 1rem;
+                font-weight: 500;
+                border-left: 4px solid #e53935;
+                text-align: left;
+            }
+            
+            /* Help Text */
+            .help-text {
+                margin-top: 1.5rem;
+                font-size: 14px;
+                color: #666666;
+            }
+            
+            /* Version Info */
+            .version-info {
+                margin-top: 2rem;
+                font-size: 12px;
+                color: #999999;
+            }
+            
+            /* Remove Streamlit Branding */
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            .viewerBadge_container__1QSob {display: none;}
+        </style>
+    """, unsafe_allow_html=True)
+
+    # Create centered container
+    st.markdown('<div class="login-container">', unsafe_allow_html=True)
+    
+    # Logo and title
+    st.markdown('<div class="company-logo">📊</div>', unsafe_allow_html=True)
+    st.markdown('<h1 class="title">DMAT Escalations Dashboard</h1>', unsafe_allow_html=True)
+    st.markdown('<p class="subtitle">Sign in to access your dashboard</p>', unsafe_allow_html=True)
+
+    # Login form
+    username = st.text_input("Username", placeholder="Enter your username")
+    password = st.text_input("Password", type="password", placeholder="Enter your password")
+
+    if st.button("Sign In"):
+        # Check credentials
+        valid_login = False
+        for role, cred in credentials.items():
+            if username == cred["username"] and password == cred["password"]:
+                st.session_state["authenticated"] = True
+                st.session_state["role"] = role
+                valid_login = True
+                st.rerun()  # Refresh to show the main dashboard
+                break
+
+        if not valid_login:
+            st.markdown('<div class="error-msg"><strong>Access Denied</strong><br>The username or password you entered is incorrect. Please try again.</div>', unsafe_allow_html=True)
+
+    st.markdown('<p class="help-text">Having trouble signing in? Contact your system administrator.</p>', unsafe_allow_html=True)
+    st.markdown('<p class="version-info">DMAT Escalations Dashboard v1.2.0</p>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# Set page config
+st.set_page_config(layout="wide", page_title="DMAT - Escalations Dashboard", page_icon="📊")
+
+# Initialize session state
+if "authenticated" not in st.session_state:
+    st.session_state["authenticated"] = False
+
+if "username" not in st.session_state:
+    st.session_state["username"] = None
+    st.session_state["role"] = None
+
+if 'theme' not in st.session_state:
+    st.session_state['theme'] = "Default"
+
+# Initialize authentication
+credentials = load_credentials()
+
+# Load the logo as base64
+logo_path = os.path.join(os.path.dirname(__file__), "image", "DMAT.Logo.png")
+LOGO_BASE64 = ""
+if os.path.exists(logo_path):
+    try:
+        LOGO_BASE64 = get_base64(logo_path)
+    except Exception as e:
+        st.error(f"Error loading logo: {e}")
+
+# Check authentication
+if not st.session_state["authenticated"]:
+    login()
+else:
+    # Apply the current theme
+    apply_theme(st.session_state['theme'])
+    
+    # Display the logo directly in the page
+    if os.path.exists(logo_path):
+        # Create more columns for better centering
+        col1, col2, col3 = st.columns([1, 1, 1])
+        with col2:
+            # Add vertical space before logo
+            st.markdown("<div style='height: 20px'></div>", unsafe_allow_html=True)
+            # Use Streamlit's image display instead of HTML
+            try:
+                logo_img = Image.open(logo_path)
+                st.image(logo_img, width=300, use_container_width=False)
+            except Exception as e:
+                st.error(f"Error displaying logo: {e}")
+    
+    # Apply a data analytics background directly
+    # No need to use logo_base64 for background as we're displaying the logo directly
+    st.markdown(f"""
+    <style>
+    .stApp {{
+        background: linear-gradient(135deg, #f8fafc 0%, #eef2f7 100%);
+        position: relative;
+    }}
+    
+    /* Professional subtle background pattern */
+    .stApp::before {{
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%231E88E5' fill-opacity='0.05' fill-rule='evenodd'/%3E%3C/svg%3E");
+        opacity: 0.5;
+        z-index: -1;
+    }}
+    
+    /* Subtle pattern background instead of logo watermark */
+    body::before {{
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%231E88E5' fill-opacity='0.05' fill-rule='evenodd'/%3E%3C/svg%3E");
+        opacity: 0.5;
+        z-index: -1;
+        pointer-events: none;
+    }}
+    
+    /* Add a subtle gradient accent at the top */
+    .stApp .stHeader {{
+        position: relative;
+    }}
+    
+    .stApp .stHeader::before {{
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(to right, #1E88E5, #4CAF50, #FFC107, #F44336);
+        z-index: 1000;
+    }}
+    
+    /* Add data visualization styling to cards */
+    .dashboard-card {{
+        position: relative;
+        overflow: hidden;
+        background: white;
+        transition: all 0.3s ease;
+        border: 1px solid rgba(30, 136, 229, 0.2);
+    }}
+    
+    .dashboard-card:hover {{
+        transform: translateY(-5px);
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+        border-color: rgba(30, 136, 229, 0.4);
+    }}
+    
+    /* Add data visualization decorative elements */
+    .dashboard-card::before {{
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 100px;
+        height: 100px;
+        background-image: 
+            radial-gradient(circle at 70% 30%, rgba(30, 136, 229, 0.1) 0%, rgba(30, 136, 229, 0.1) 40%, transparent 40%),
+            radial-gradient(circle at 30% 70%, rgba(76, 175, 80, 0.1) 0%, rgba(76, 175, 80, 0.1) 30%, transparent 30%);
+        background-size: 100px 100px;
+        background-repeat: no-repeat;
+        pointer-events: none;
+        z-index: 0;
+    }}
+    
+    /* Style stat items to look like data cards */
+    .stat-item {{
+        position: relative;
+        overflow: hidden;
+        background: white;
+        border: 1px solid rgba(30, 136, 229, 0.2);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }}
+    
+    .stat-item::after {{
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(to right, #1E88E5, #4CAF50);
+    }}
+    
+    /* Style sections with data visualization elements */
+    .section {{
+        position: relative;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        border: 1px solid rgba(30, 136, 229, 0.1);
+        overflow: hidden;
+    }}
+    
+    .section::before {{
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(to right, #1E88E5, #4CAF50, #FFC107, #F44336);
+        z-index: 1;
+    }}
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # Theme selector in sidebar
+    with st.sidebar:
+        st.title("Settings")
+        selected_theme = st.selectbox(
+            "Select Theme",
+            options=list(THEMES.keys()),
+            index=list(THEMES.keys()).index(st.session_state['theme'])
+        )
+        
+        if selected_theme != st.session_state['theme']:
+            st.session_state['theme'] = selected_theme
+            apply_theme(selected_theme)
+            st.rerun()
+        
+        # Logout button
+        if st.button("Logout"):
+            st.session_state["authenticated"] = False
+            st.session_state["role"] = None
+            st.rerun()
+    
+    # Main content
+    st.markdown("<h1 class='main-title'>DMAT Escalations Dashboard</h1>", unsafe_allow_html=True)
+    
+    # Introduction section with company logo
+    col_logo, col_intro = st.columns([1, 3])
+    
+    with col_logo:
+        # Display a placeholder logo or icon
+        st.markdown("""
+        <div style="text-align: center; padding: 1rem;">
+            <div style="font-size: 5rem; color: #1E88E5;">📊</div>
+            <div style="font-weight: bold; margin-top: 0.5rem;">DMAT</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col_intro:
+        st.markdown("""
+        <div style="padding: 1rem;">
+            <h2 style="margin-bottom: 1rem;">Enterprise Escalations Management Platform</h2>
+            <p style="font-size: 1.1rem; line-height: 1.6;">
+                Welcome to the DMAT Escalations Dashboard, a comprehensive analytics platform for monitoring and managing escalations across different business domains. This dashboard provides real-time insights, trend analysis, and actionable recommendations to improve service delivery and operational efficiency.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Stats section
+    st.markdown("""
+    <div class="stats-container">
+        <div class="stat-item">
+            <div class="stat-value">2</div>
+            <div class="stat-label">Dashboard Modules</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value">100%</div>
+            <div class="stat-label">Data Visualization</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value">24/7</div>
+            <div class="stat-label">Monitoring</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Dashboard modules section
+    st.markdown("<h2 class='sub-title'>Dashboard Modules</h2>", unsafe_allow_html=True)
+    
+    # Dashboard cards
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("""
+        <div class="dashboard-card">
+            <div class="dashboard-card-title">📊 TA & Census Escalations</div>
+            <div class="dashboard-card-description">
+                Monitor and analyze Time & Attendance and Census escalations with comprehensive analytics. 
+                Track trends over time, identify patterns by category and account, detect anomalies, 
+                and generate actionable insights to improve service delivery and reduce escalation volume.
+            </div>
+            <a href="/Escalations_Dashboard" target="_self" class="dashboard-card-link">Open Dashboard</a>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown("""
+        <div class="dashboard-card">
+            <div class="dashboard-card-title">💰 Deductions Escalations</div>
+            <div class="dashboard-card-description">
+                Track deductions escalations across different environments, providers, and employers with detailed analytics.
+                Monitor failure rates, analyze transaction trends, identify automation opportunities, and gain insights into 
+                common failure reasons to improve process efficiency and reduce financial impact.
+            </div>
+            <a href="/Deductions_Escalations" target="_self" class="dashboard-card-link">Open Dashboard</a>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Features section
+    st.markdown("<h2 class='sub-title'>Key Features</h2>", unsafe_allow_html=True)
+    
+    # Features in columns
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("""
+        <div class="section">
+            <h3>TA & Census Escalations Dashboard</h3>
+            <ul class="feature-list">
+                <li>Real-time monitoring of escalation volume and trends</li>
+                <li>Interactive breakdown by categories, modes, and accounts</li>
+                <li>Advanced anomaly detection with AI-powered insights</li>
+                <li>Comprehensive data exploration with custom filters</li>
+                <li>Automated recommendations for process improvement</li>
+                <li>Export capabilities for reports and presentations</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown("""
+        <div class="section">
+            <h3>Deductions Escalations Dashboard</h3>
+            <ul class="feature-list">
+                <li>Precise tracking of deduction amounts and failure rates</li>
+                <li>Multi-dimensional analysis by provider, method, and employer</li>
+                <li>Detailed failure analysis with root cause identification</li>
+                <li>Time-based trend analysis with forecasting capabilities</li>
+                <li>Customizable data explorer with search functionality</li>
+                <li>Data export in multiple formats (CSV, Excel)</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Getting started section
+    st.markdown("<h2 class='sub-title'>Getting Started</h2>", unsafe_allow_html=True)
+    
+    st.markdown("""
+    <div class="section">
+        <p style="font-size: 1.1rem; margin-bottom: 1.5rem;">
+            Follow these simple steps to start using the DMAT Escalations Dashboard:
+        </p>
+        
+        <ol style="padding-left: 1.5rem; line-height: 1.8;">
+            <li><strong>Select a dashboard module</strong> from the cards above based on your monitoring needs</li>
+            <li><strong>Upload your data file</strong> in the appropriate format (CSV or Excel)</li>
+            <li><strong>Explore the interactive visualizations</strong> to gain insights into your escalation data</li>
+            <li><strong>Use the filtering capabilities</strong> to focus on specific aspects of the data</li>
+            <li><strong>Review the automated insights and recommendations</strong> to improve your processes</li>
+            <li><strong>Export reports or data</strong> for further analysis or presentation</li>
+        </ol>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # System requirements
+    st.markdown("<h2 class='sub-title'>System Information</h2>", unsafe_allow_html=True)
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("""
+        <div class="section">
+            <h3>Technical Specifications</h3>
+            <ul class="feature-list">
+                <li>Built with Streamlit and Python</li>
+                <li>Interactive data visualization with Plotly</li>
+                <li>Responsive design for all screen sizes</li>
+                <li>Secure authentication system</li>
+                <li>Customizable themes and appearance</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown("""
+        <div class="section">
+            <h3>Support Information</h3>
+            <ul class="feature-list">
+                <li>Version: 1.2.0 (May 2025)</li>
+                <li>Last Updated: May 14, 2025</li>
+                <li>Developed by: DMAT Development Team</li>
+                <li>Contact: support@dmat-team.com</li>
+                <li>Documentation: Available in Help section</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Footer
+    st.markdown("""
+    <div class="footer">
+        <div style="margin-bottom: 0.5rem; font-weight: 500;">DMAT Escalations Dashboard</div>
+        <div>© 2025 DMAT Team | Version 1.2.0 | All Rights Reserved</div>
+    </div>
+    """, unsafe_allow_html=True)

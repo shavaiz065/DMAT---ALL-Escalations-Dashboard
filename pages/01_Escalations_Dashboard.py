@@ -3,15 +3,16 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import matplotlib.pyplot as plt
+import datetime
 from io import BytesIO
 from matplotlib.backends.backend_pdf import PdfPages
-import datetime
 from PIL import Image
 import numpy as np
 from plotly.io import write_image
 import time
 import json
 import os
+import sys
 import base64
 from html2image import Html2Image
 from reportlab.lib import colors
@@ -204,56 +205,38 @@ def login():
 
 
 # Check authentication state
-if "authenticated" not in st.session_state:
-    st.session_state["authenticated"] = False
-
-if not st.session_state["authenticated"]:
-    login()
+if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
+    st.warning("Please log in from the Home page to access this dashboard.")
     st.stop()  # Stop execution if not authenticated
-else:
 
-    # Navigation and Profile Section
-    with st.sidebar:
-        # Welcome Message
-        st.markdown(f"<div class='welcome-header'>Welcome, {st.session_state.get('username', 'User')}</div>", unsafe_allow_html=True)
-        
-        # Navigation Buttons
-        nav_col1, nav_col2 = st.columns(2)
-        
-        with nav_col1:
-            if st.button("🏠 Home", use_container_width=True, key="nav_home"):
-                st.switch_page("Home.py")
-                
-        with nav_col2:
-            if st.button("📊 Escalations", use_container_width=True, key="nav_escalations", disabled=True):
-                pass  # Current page, button is disabled
-        
-        # Deductions Dashboard button (full width)
-        if st.button("📈 Deductions Dashboard", use_container_width=True, key="nav_deductions"):
-            st.switch_page("pages/02_Deductions_Escalations.py")
-        
-        st.markdown("---")
-        
-        # Admin Profile Section
-        if st.session_state.get("user_type") == "admin":
-            if st.button("👤 View Profile", use_container_width=True, key="btn_view_profile"):
-                st.subheader("Admin Profile")
-                st.write("Username: admin")
-                st.write("Role: Admin")
+# User is authenticated - Create minimal sidebar with just welcome message
+with st.sidebar:
+    # Welcome Message
+    st.markdown(f"<div class='welcome-header'>Welcome, {st.session_state.get('username', 'User')}</div>", unsafe_allow_html=True)
+    
+    # Add a separator
+    st.markdown("---")
+    
+    # Admin Profile Section
+    if st.session_state.get("user_type") == "admin":
+        if st.button("👤 View Profile", use_container_width=True, key="btn_view_profile"):
+            st.subheader("Admin Profile")
+            st.write("Username: admin")
+            st.write("Role: Admin")
 
-                # Password Change Option Inside Profile
-                with st.expander("🔑 Change Password"):
-                    new_password = st.text_input("New Password", type="password", key="new_pass")
-                    confirm_password = st.text_input("Confirm New Password", type="password", key="confirm_pass")
+            # Password Change Option Inside Profile
+            with st.expander("🔑 Change Password"):
+                new_password = st.text_input("New Password", type="password", key="new_pass")
+                confirm_password = st.text_input("Confirm New Password", type="password", key="confirm_pass")
 
-                    if st.button("Update Password", key="btn_update_pass"):
-                        if new_password == confirm_password:
-                            save_credentials("admin", new_password)  # Save new password
-                            st.success("Password updated successfully! Please log in again.")
-                            st.session_state["authenticated"] = False
-                            st.rerun()  # Logout user after password change
-                        else:
-                            st.error("Passwords do not match!")
+                if st.button("Update Password", key="btn_update_pass"):
+                    if new_password == confirm_password:
+                        save_credentials("admin", new_password)  # Save new password
+                        st.success("Password updated successfully! Please log in again.")
+                        st.session_state["authenticated"] = False
+                        st.rerun()  # Logout user after password change
+                    else:
+                        st.error("Passwords do not match!")
 
 # Dashboard theme settings
 THEMES = {
