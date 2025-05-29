@@ -110,9 +110,6 @@ def create_custom_sidebar():
         st.sidebar.page_link("pages/01_Escalations_Dashboard.py", label="TA/Census Escalations Dashboard", icon="📈")
         st.sidebar.page_link("pages/02_Deductions_Escalations.py", label="Deductions Escalations", icon="📊")
 
-# Import the background image module
-from assets.background import get_background_style
-
 # File to store credentials
 CREDENTIALS_FILE = "credentials.json"
 
