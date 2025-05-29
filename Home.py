@@ -651,7 +651,7 @@ def login():
         # Professional title card
         st.markdown("""
         <div class="title-card">
-            <h2 class="title-text">DMAT TA/Census Escalations Dashboard</h2>
+            <h2 class="title-text">DMAT Escalations Dashboard</h2>
         </div>
         """, unsafe_allow_html=True)
         
@@ -725,13 +725,13 @@ else:
             st.rerun()
     
     # Main content
-    st.markdown("<h1 class='main-title'>DMAT TA/Census Escalations Dashboard</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 class='main-title'>DMAT Escalations Dashboard</h1>", unsafe_allow_html=True)
     
     # Introduction
     st.markdown("""
     <div class="section">
         <p style="font-size: 1.1rem; line-height: 1.6;">
-            Welcome to the DMAT TA/Census Escalations Dashboard, a comprehensive tool designed to monitor, analyze, and manage TA and Census escalations. 
+            Welcome to the DMAT Escalations Dashboard, a comprehensive tool designed to monitor, analyze, and manage TA and Census escalations. 
             This dashboard provides real-time insights, trend analysis, and detailed reporting capabilities to help teams identify issues, track resolution progress, and improve operational efficiency.
         </p>
     </div>
@@ -839,7 +839,7 @@ else:
     # Footer
     st.markdown("""
     <div class="footer">
-        <div style="margin-bottom: 0.5rem; font-weight: 500;">DMAT TA/Census Escalations Dashboard</div>
+        <div style="margin-bottom: 0.5rem; font-weight: 500;">DMAT Escalations Dashboard</div>
         <div>© Shavaiz Zia Butt | Version 1.2.0 | All Rights Reserved</div>
     </div>
     """, unsafe_allow_html=True)
