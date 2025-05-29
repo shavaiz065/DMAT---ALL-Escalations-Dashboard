@@ -3,7 +3,7 @@ import streamlit as st
 # Set page config (must be the first Streamlit command)
 st.set_page_config(
     layout="wide", 
-    page_title="DMAT - TA/Census Escalations Dashboard", 
+    page_title="DMAT - Escalations Dashboard", 
     page_icon="📊",
     menu_items={
         'Get Help': None,
