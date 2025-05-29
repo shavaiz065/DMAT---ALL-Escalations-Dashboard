@@ -2,14 +2,14 @@ import streamlit as st
 
 # Set page config (must be the first Streamlit command)
 st.set_page_config(
-    page_title="DMAT - TA/Census Escalations Dashboard",
+    page_title="DMAT - Escalations Dashboard",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
         'Get Help': 'https://example.com/help',
         'Report a bug': 'https://example.com/bug',
-        'About': "# DMAT TA/Census Escalations Dashboard\n\nWelcome to the DMAT TA/Census Escalations Dashboard."
+        'About': "# DMAT TA/Census Escalations Dashboard\n\nWelcome to the DMAT Escalations Dashboard."
     }
 )
 
@@ -662,7 +662,7 @@ def login():
         # Professional title card
         st.markdown("""
         <div class="title-card">
-            <h2 class="title-text">DMAT TA/Census Escalations Dashboard</h2>
+            <h2 class="title-text">DMAT Escalations Dashboard</h2>
         </div>
         """, unsafe_allow_html=True)
         
@@ -736,7 +736,7 @@ else:
             st.rerun()
     
     # Main content
-    st.markdown("<h1 class='main-title'>DMAT TA/Census Escalations Dashboard</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 class='main-title'>DMAT Escalations Dashboard</h1>", unsafe_allow_html=True)
     
     # Introduction
     st.markdown("""
@@ -850,7 +850,7 @@ else:
     # Footer
     st.markdown("""
     <div class="footer">
-        <div style="margin-bottom: 0.5rem; font-weight: 500;">DMAT TA/Census Escalations Dashboard</div>
+        <div style="margin-bottom: 0.5rem; font-weight: 500;">DMAT Escalations Dashboard</div>
         <div>© Shavaiz Zia Butt | Version 1.2.0 | All Rights Reserved</div>
     </div>
     """, unsafe_allow_html=True)
