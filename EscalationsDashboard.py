@@ -890,7 +890,7 @@ def show_tutorial():
 
 
 # Dashboard Header
-st.markdown("<h1 class='main-title'>📊 DMAT - Escalations Dashboard</h1>", unsafe_allow_html=True)
+st.markdown("<h1 class='main-title'>📊 DMAT - TA/CensusEscalations Dashboard</h1>", unsafe_allow_html=True)
 
 # Move the file upload section to the sidebar
 st.sidebar.header("Dashboard Settings")
