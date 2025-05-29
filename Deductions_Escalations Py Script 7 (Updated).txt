@@ -459,30 +459,29 @@ def display_metrics(df):
 
 def main():
     st.markdown("<h1 class='main-title'>📊 Deductions Escalations Dashboard</h1>", unsafe_allow_html=True)
-    
-    # File upload section
-    st.markdown("<div class='dashboard-section'><h3 class='sub-title'>📤 Upload Deductions Report</h3><div class='upload-container'>", unsafe_allow_html=True)
-    uploaded_file = st.file_uploader(
-        "Upload your deductions report (Excel or CSV)",
-        type=['xlsx', 'xls', 'csv'],
-        key="deductions_uploader"
-    )
-    
-    if uploaded_file is not None:
-        with st.spinner('Processing file...'):
-            # Process the file
-            df = process_uploaded_file(uploaded_file)
-            
-            if df is not None:
+
+    # Move file upload to sidebar
+    with st.sidebar:
+        st.markdown("<h3 class='sub-title'>📁 Upload Deductions Report</h3>", unsafe_allow_html=True)
+        uploaded_file = st.file_uploader(
+            "Upload Excel or CSV file",
+            type=['xlsx', 'csv'],
+            help="Upload your deductions escalations report in Excel (.xlsx) or CSV format"
+        )
+
+        if uploaded_file is not None:
+            try:
+                df = process_uploaded_file(uploaded_file)
                 st.session_state['deductions_df'] = df
                 st.session_state['file_processed'] = True
                 st.success("File processed successfully!")
-                
-                # Display metrics
-                display_metrics(df)
-    
-    # If we have processed data, show the full dashboard
-    if st.session_state.get('file_processed') and st.session_state['deductions_df'] is not None:
+            except Exception as e:
+                st.error(f"Error processing file: {str(e)}")
+                st.session_state['deductions_df'] = None
+                st.session_state['file_processed'] = False
+
+    # Display dashboard content if data is available
+    if st.session_state['file_processed'] and st.session_state['deductions_df'] is not None:
         df = st.session_state['deductions_df']
         
         # Add tabs for different views
