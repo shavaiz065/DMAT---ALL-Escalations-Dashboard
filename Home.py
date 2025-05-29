@@ -106,9 +106,9 @@ def create_custom_sidebar():
         st.sidebar.markdown("<hr class='sidebar-separator'>", unsafe_allow_html=True)
         
         # Navigation links
-        st.sidebar.page_link("/", label="Home", icon="🏠")
-        st.sidebar.page_link("/TA_Census_Escalations", label="TA/Census Escalations Dashboard", icon="📈")
-        st.sidebar.page_link("/Deductions_Escalations", label="Deductions Escalations", icon="📊")
+        st.sidebar.page_link("Home.py", label="Home", icon="🏠")
+        st.sidebar.page_link("pages/01_Escalations_Dashboard.py", label="TA/Census Escalations Dashboard", icon="📈")
+        st.sidebar.page_link("pages/02_Deductions_Escalations.py", label="Deductions Escalations", icon="📊")
 
 # File to store credentials
 CREDENTIALS_FILE = "credentials.json"
@@ -749,18 +749,6 @@ else:
                 <h3 class="dashboard-card-title">📊 TA & Census Escalations</h3>
                 <p class="dashboard-card-description">
                     Monitor and analyze Time & Attendance and Census escalations with detailed breakdowns by category, account, and resolution status. Track trends over time and identify patterns to improve response times.
-                </p>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("""
-        <div class="dashboard-card">
-            <div>
-                <h3 class="dashboard-card-title">💰 Deductions Escalations</h3>
-                <p class="dashboard-card-description">
-                    Track deduction-related escalations with comprehensive analysis by provider, method, and employer. Monitor failed transactions, analyze root causes, and optimize the deduction process.
                 </p>
             </div>
         </div>
