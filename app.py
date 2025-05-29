@@ -32,8 +32,15 @@ st.markdown("""
         font-weight: 600;
         color: #2E4374;
         padding: 0.75rem 1rem;
-        margin-bottom: 0.5rem;
-        border-bottom: 1px solid rgba(49, 51, 63, 0.1);
+        margin: 0;
+        background: linear-gradient(to right, rgba(46, 67, 116, 0.1), transparent);
+    }
+    
+    /* Separator styling */
+    .sidebar-separator {
+        margin: 0.5rem 0;
+        border: 0;
+        border-top: 1px solid rgba(49, 51, 63, 0.1);
     }
     
     /* Style navigation buttons to look like menu items */
@@ -92,13 +99,15 @@ if 'theme' not in st.session_state:
 # Custom function to create sidebar with welcome message at top
 def create_custom_sidebar():
     if st.session_state.get("authenticated"):
-        # Add welcome message at the top
+        # Add welcome message at the very top
         st.sidebar.markdown(f"<div class='welcome-header'>Welcome, {st.session_state.get('username', 'User')}</div>", unsafe_allow_html=True)
         
-        # Home option - current page
-        st.sidebar.page_link("app.py", label="Home", icon="🏠")
+        # Add a separator
+        st.sidebar.markdown("<hr class='sidebar-separator'>", unsafe_allow_html=True)
         
-        # Deductions Escalations option
+        # Navigation links
+        st.sidebar.page_link("app.py", label="Home", icon="🏠")
+        st.sidebar.page_link("pages/01_Escalations_Dashboard.py", label="TA/Census Escalations Dashboard", icon="📈")
         st.sidebar.page_link("pages/02_Deductions_Escalations.py", label="Deductions Escalations", icon="📊")
 
 # Import the background image module

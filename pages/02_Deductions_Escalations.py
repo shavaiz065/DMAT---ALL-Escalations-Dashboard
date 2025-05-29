@@ -240,6 +240,12 @@ if "authenticated" not in st.session_state or not st.session_state["authenticate
 
 # Create a minimal sidebar with just welcome message
 with st.sidebar:
+    # Welcome Message (always at the very top)
+    st.markdown(f"<div class='welcome-header'>Welcome, {st.session_state.get('username', 'User')}</div>", unsafe_allow_html=True)
+    
+    # Add a separator
+    st.markdown("<hr class='sidebar-separator'>", unsafe_allow_html=True)
+    
     # Debug section (collapsible)
     with st.expander("Debug Info", expanded=False):
         if 'debug_messages' in st.session_state:
@@ -247,12 +253,6 @@ with st.sidebar:
                 st.text(msg)
         else:
             st.text("No debug messages yet")
-            
-    # Welcome Message
-    st.markdown(f"<div class='welcome-header'>Welcome, {st.session_state.get('username', 'User')}</div>", unsafe_allow_html=True)
-    
-    # Add a separator
-    st.markdown("---")
 
 # Apply the current theme
 apply_theme(st.session_state['theme'])
