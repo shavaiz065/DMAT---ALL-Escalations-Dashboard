@@ -245,14 +245,6 @@ with st.sidebar:
     
     # Add a separator
     st.markdown("<hr class='sidebar-separator'>", unsafe_allow_html=True)
-    
-    # Debug section (collapsible)
-    with st.expander("Debug Info", expanded=False):
-        if 'debug_messages' in st.session_state:
-            for msg in st.session_state.debug_messages[-10:]:  # Show last 10 messages
-                st.text(msg)
-        else:
-            st.text("No debug messages yet")
 
 # Apply the current theme
 apply_theme(st.session_state['theme'])
@@ -261,35 +253,6 @@ apply_theme(st.session_state['theme'])
 if 'deductions_df' not in st.session_state:
     st.session_state['deductions_df'] = None
     st.session_state['file_processed'] = False
-
-def debug_print(message):
-    """Print debug messages to both console and sidebar if enabled"""
-    # Always print to console
-    print(f"[DEBUG] {message}")
-    
-    # Also show in the Streamlit app's debug section
-    if 'debug_messages' not in st.session_state:
-        st.session_state.debug_messages = []
-    st.session_state.debug_messages.append(str(message))
-    
-    # Keep only the last 20 messages
-    if len(st.session_state.debug_messages) > 20:
-        st.session_state.debug_messages = st.session_state.debug_messages[-20:]
-
-def convert_to_numeric(series):
-    """Helper function to safely convert series to numeric"""
-    # If already numeric, return as is
-    if pd.api.types.is_numeric_dtype(series):
-        return series
-    
-    # Try to convert to string first to handle any non-string types
-    str_series = series.astype(str)
-    
-    # Remove any non-numeric characters except decimal point and negative sign
-    cleaned = str_series.str.replace(r'[^\d.-]', '', regex=True)
-    
-    # Convert to numeric, coercing errors to NaN
-    return pd.to_numeric(cleaned, errors='coerce')
 
 def process_uploaded_file(uploaded_file):
     """Process the uploaded file and return a cleaned dataframe"""
@@ -302,12 +265,10 @@ def process_uploaded_file(uploaded_file):
         
         # Store original columns before any processing
         original_columns = df.columns.tolist()
-        debug_print(f"Original columns: {original_columns}")
         
         # First, clean up the column names (just trim whitespace, no title case conversion)
         df.columns = df.columns.str.strip()
         cleaned_columns = df.columns.tolist()
-        debug_print(f"Cleaned columns: {cleaned_columns}")
         
         # Define expected columns with possible variations (exact matches)
         column_mapping = {
@@ -345,12 +306,10 @@ def process_uploaded_file(uploaded_file):
                 if col in df.columns:
                     column_mapping_inv[col] = expected_col
                     mapped_columns.add(col)
-                    debug_print(f"Mapped '{col}' to '{expected_col}' (exact match)")
                     break
         
         # Second pass: case-insensitive matches for any remaining columns
         remaining_columns = [col for col in df.columns if col not in mapped_columns]
-        debug_print(f"Remaining unmapped columns: {remaining_columns}")
         
         for col in remaining_columns:
             col_lower = col.lower().replace(" ", "").replace("_", "").replace("-", "")
@@ -359,11 +318,7 @@ def process_uploaded_file(uploaded_file):
                 if col_lower == expected_col_lower:
                     column_mapping_inv[col] = expected_col
                     mapped_columns.add(col)
-                    debug_print(f"Mapped '{col}' to '{expected_col}' (case-insensitive match)")
                     break
-        
-        # Debug: Print the mapping
-        debug_print(f"Column mapping: {column_mapping_inv}")
         
         # Rename columns to standard names
         if column_mapping_inv:
@@ -375,31 +330,43 @@ def process_uploaded_file(uploaded_file):
             st.warning(f"Warning: The following columns could not be mapped: {', '.join(missing_columns)}")
             st.info(f"Available columns: {', '.join(original_columns)}")
         
-        # Debug: Print final column names
-        debug_print(f"Final column names: {df.columns.tolist()}")
-        
         # Convert numeric columns
         numeric_columns = ["Amount", "Failed Amount", "Transactions"]
         for col in numeric_columns:
             if col in df.columns:
                 df[col] = convert_to_numeric(df[col])
-            else:
-                debug_print(f"Numeric column not found: {col}")
         
         # Convert date columns
         date_columns = ["Deduction Submission Date", "Pay Day"]
         for col in date_columns:
             if col in df.columns:
                 df[col] = pd.to_datetime(df[col], errors='coerce')
-            else:
-                debug_print(f"Date column not found: {col}")
         
         return df
         
     except Exception as e:
         st.error(f"Error processing file: {str(e)}")
-        debug_print(f"Error processing file: {str(e)}")
         return None
+
+def convert_to_numeric(series):
+    """Convert a series to numeric, handling currency symbols and commas"""
+    if series is None:
+        return pd.Series()
+    
+    # If series is already numeric, return as is
+    if pd.api.types.is_numeric_dtype(series):
+        return series
+    
+    # Convert series to string type first
+    series = series.astype(str)
+    
+    # Remove currency symbols, commas, and spaces
+    series = series.str.replace('$', '')
+    series = series.str.replace(',', '')
+    series = series.str.strip()
+    
+    # Convert to numeric, invalid values become NaN
+    return pd.to_numeric(series, errors='coerce').fillna(0)
 
 def safe_sum(series, default=0):
     """Safely sum a series, handling None and NaN values"""
