@@ -16,76 +16,251 @@ st.set_page_config(
 # Custom CSS for styling and sidebar modification
 st.markdown("""
 <style>
-    /* General styling */
-    .stApp {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    /* Main theme colors and fonts */
+    :root {
+        --background-color: #ffffff;
+        --card-bg: #ffffff;
+        --primary-color: #1565c0;
+        --text-color: #2c3e50;
+        --text-muted: #6c757d;
+        --border-color: #e9ecef;
     }
-    
+
+    /* Global styles */
+    .stApp {
+        background: var(--background-color);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+
     /* Hide default navigation */
     header[data-testid="stHeader"] {
         display: none;
     }
-    
+
     /* Custom sidebar nav styling */
     [data-testid="stSidebarNav"] {
         display: none;
     }
-    
+
     /* Style sidebar content */
+    section[data-testid="stSidebar"] {
+        background: var(--card-bg);
+        border-right: 1px solid var(--border-color);
+    }
+
     section[data-testid="stSidebar"] > div {
         padding-top: 0;
     }
-    
+
+    section[data-testid="stSidebar"] > div {
+        padding-top: 0;
+    }
+
     /* Custom welcome message styling */
     .welcome-header {
-        font-size: 1.2rem;
+        font-size: 1.1rem;
         font-weight: 600;
-        color: #2E4374;
-        padding: 0.75rem 1rem;
+        color: var(--text-color);
+        padding: 1rem;
         margin: 0;
-        background: linear-gradient(to right, rgba(46, 67, 116, 0.1), transparent);
+        background: var(--card-bg);
+        border-bottom: 1px solid var(--border-color);
     }
-    
+
     /* Separator styling */
     .sidebar-separator {
         margin: 0.5rem 0;
         border: 0;
-        border-top: 1px solid rgba(49, 51, 63, 0.1);
+        border-top: 1px solid var(--border-color);
     }
-    
+
     /* Style navigation buttons to look like menu items */
     .stButton > button {
         width: 100%;
         text-align: left;
         background-color: transparent;
-        color: #262730;
+        color: var(--text-color);
         border: none;
-        padding: 0.5rem 0.75rem;
+        padding: 0.75rem 1rem;
         margin-bottom: 0.25rem;
         border-radius: 4px;
         font-weight: normal;
         box-shadow: none;
+        transition: background-color 0.2s;
     }
-    
+
     .stButton > button:hover {
-        background-color: rgba(151, 166, 195, 0.1);
-        color: #2E4374;
-        border: none;
-        box-shadow: none;
+        background-color: rgba(21, 101, 192, 0.05);
+        color: var(--primary-color);
     }
-    
+
     /* Remove button styling */
     .stButton > button::after {
         display: none;
     }
-    
+
     .stButton > button:active {
         transform: none;
-        background-color: rgba(151, 166, 195, 0.2);
-        color: #2E4374;
+        background-color: rgba(21, 101, 192, 0.1);
+        color: var(--primary-color);
         font-weight: 500;
-        border: none;
-        box-shadow: none;
+    }
+    /* Dashboard cards */
+    .dashboard-card {
+        background: var(--card-bg);
+        border-radius: 4px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        border: 1px solid var(--border-color);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        height: 100%;
+    }
+
+    .dashboard-card-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text-color);
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .dashboard-card-description {
+        color: var(--text-muted);
+        font-size: 0.95rem;
+        line-height: 1.5;
+        margin: 0;
+    }
+
+    /* Section titles */
+    .main-title {
+        font-size: 2rem;
+        font-weight: 600;
+        color: var(--text-color);
+        margin-bottom: 1rem;
+    }
+
+    .sub-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--text-color);
+        margin: 2rem 0 1rem 0;
+    }
+
+    /* Feature lists */
+    .feature-list {
+        list-style-type: none;
+        padding-left: 0;
+        margin: 0;
+    }
+
+    .feature-list li {
+        margin-bottom: 0.5rem;
+        color: var(--text-muted);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .feature-list li:before {
+        content: '•';
+        color: var(--primary-color);
+    }
+
+    /* Footer */
+    .footer {
+        text-align: center;
+        padding: 2rem 0;
+        margin-top: 3rem;
+        border-top: 1px solid var(--border-color);
+        color: var(--text-muted);
+        font-size: 0.9rem;
+    }
+
+    /* Additional styles */
+    .section {
+        background: var(--card-bg);
+        border-radius: 4px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        border: 1px solid var(--border-color);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .section h3 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text-color);
+        margin-bottom: 1rem;
+    }
+
+    /* Form inputs */
+    .stTextInput > div > div > input,
+    .stSelectbox > div > div {
+        background-color: var(--card-bg);
+        border-color: var(--border-color);
+        border-radius: 4px;
+    }
+
+    .stTextInput > div > div > input:focus,
+    .stSelectbox > div > div:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 1px var(--primary-color);
+    }
+
+    /* Metrics */
+    .metric-container {
+        background: var(--card-bg);
+        border-radius: 4px;
+        padding: 1rem;
+        border: 1px solid var(--border-color);
+        text-align: center;
+    }
+
+    .metric-value {
+        font-size: 2rem;
+        font-weight: 600;
+        color: var(--primary-color);
+        margin-bottom: 0.25rem;
+    }
+
+    .metric-label {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+    }
+
+    /* Tables */
+    .dataframe {
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .dataframe th {
+        background-color: var(--background-color);
+        color: var(--text-color);
+        font-weight: 600;
+        padding: 0.75rem;
+        border-bottom: 2px solid var(--border-color);
+    }
+
+    .dataframe td {
+        padding: 0.75rem;
+        border-bottom: 1px solid var(--border-color);
+        color: var(--text-color);
+    }
+
+    .dataframe tr:last-child td {
+        border-bottom: none;
+    }
+
+    /* Plotly charts */
+    .js-plotly-plot {
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        padding: 1rem;
+        background: var(--card-bg);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -282,21 +457,22 @@ def apply_theme(theme_name):
         }}
         
         /* Buttons */
-        .stButton button {{
+        .stButton > button {{
             background-color: {theme["primary_color"]};
             color: white;
             border: none;
             border-radius: 8px;
             padding: 0.7rem 1.5rem;
+            font-size: 1rem;
             font-weight: 600;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 8px {theme["primary_color"]}30;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
         }}
         
-        .stButton button:hover {{
+        .stButton > button:hover {{
             background-color: {theme["accent_color"]};
             color: white;
-            box-shadow: 0 6px 12px {theme["accent_color"]}30;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.1);
             transform: translateY(-2px);
         }}
         
@@ -740,15 +916,13 @@ else:
     
     # Introduction
     st.markdown("""
-    <div class="section">
-        <p style="font-size: 1.1rem; line-height: 1.6;">
-            Welcome to the DMAT TA/Census Escalations Dashboard, a comprehensive tool designed to monitor, analyze, and manage TA and Census escalations. 
-            This dashboard provides real-time insights, trend analysis, and detailed reporting capabilities to help teams identify issues, track resolution progress, and improve operational efficiency.
-        </p>
+    <div style="color: var(--text-muted); margin-bottom: 2rem; font-size: 1.1rem; line-height: 1.6;">
+        Welcome to the DMAT Escalations Dashboard, a comprehensive tool designed to monitor, analyze, and manage TA and Census escalations. 
+        This dashboard provides real-time insights, trend analysis, and detailed reporting capabilities to help teams identify issues, track resolution progress, and improve operational efficiency.
     </div>
     """, unsafe_allow_html=True)
     
-    # Dashboard cards
+    # Available Dashboards section
     st.markdown("<h2 class='sub-title'>Available Dashboards</h2>", unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
@@ -756,24 +930,20 @@ else:
     with col1:
         st.markdown("""
         <div class="dashboard-card">
-            <div>
-                <h3 class="dashboard-card-title">📊 TA & Census Escalations</h3>
-                <p class="dashboard-card-description">
-                    Monitor and analyze Time & Attendance and Census escalations with detailed breakdowns by category, account, and resolution status. Track trends over time and identify patterns to improve response times.
-                </p>
-            </div>
+            <h3 class="dashboard-card-title">📈 TA & Census Escalations</h3>
+            <p class="dashboard-card-description">
+                Monitor and analyze Time & Attendance and Census escalations with detailed breakdowns by category, account, and resolution status. Track trends over time and identify patterns to improve response times.
+            </p>
         </div>
         """, unsafe_allow_html=True)
     
     with col2:
         st.markdown("""
         <div class="dashboard-card">
-            <div>
-                <h3 class="dashboard-card-title">💰 Deductions Escalations</h3>
-                <p class="dashboard-card-description">
-                    Track deduction-related escalations with comprehensive analysis by provider, method, and employer. Monitor failed transactions, analyze root causes, and optimize the deduction process.
-                </p>
-            </div>
+            <h3 class="dashboard-card-title">💰 Deductions Escalations</h3>
+            <p class="dashboard-card-description">
+                Track deduction-related escalations with comprehensive analysis by provider, method, and employer. Monitor failed transactions, analyze root causes, and optimize the deduction process.
+            </p>
         </div>
         """, unsafe_allow_html=True)
     
@@ -784,8 +954,8 @@ else:
     
     with col1:
         st.markdown("""
-        <div class="section">
-            <h3>TA & Census Escalations Dashboard</h3>
+        <div class="dashboard-card">
+            <h3 class="dashboard-card-title">📈 TA & Census Escalations</h3>
             <ul class="feature-list">
                 <li>Real-time monitoring of escalation volume and trends</li>
                 <li>Interactive breakdown by categories, modes, and accounts</li>
@@ -799,8 +969,8 @@ else:
     
     with col2:
         st.markdown("""
-        <div class="section">
-            <h3>Deductions Escalations Dashboard</h3>
+        <div class="dashboard-card">
+            <h3 class="dashboard-card-title">💰 Deductions Escalations</h3>
             <ul class="feature-list">
                 <li>Precise tracking of deduction amounts and failure rates</li>
                 <li>Multi-dimensional analysis by provider, method, and employer</li>
@@ -821,8 +991,8 @@ else:
     
     with col1:
         st.markdown("""
-        <div class="section">
-            <h3>Technical Specifications</h3>
+        <div class="dashboard-card">
+            <h3 class="dashboard-card-title">⚙️ Technical Specifications</h3>
             <ul class="feature-list">
                 <li>Built with Streamlit and Python</li>
                 <li>Interactive data visualization with Plotly</li>
@@ -835,8 +1005,8 @@ else:
     
     with col2:
         st.markdown("""
-        <div class="section">
-            <h3>Support Information</h3>
+        <div class="dashboard-card">
+            <h3 class="dashboard-card-title">ℹ️ Support Information</h3>
             <ul class="feature-list">
                 <li>Version: 1.2.0 (May 2025)</li>
                 <li>Last Updated: May 14, 2025</li>
