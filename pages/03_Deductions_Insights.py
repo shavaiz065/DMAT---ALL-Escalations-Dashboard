@@ -4,15 +4,213 @@ import plotly.express as px
 from datetime import datetime, timedelta
 import math
 
-# Page configuration
-st.set_page_config(
-    page_title="Deductions Insights",
-    page_icon="💰",
-    layout="wide"
-)
+# Set page title and icon
+st.set_page_config(page_title="Deductions Insights", page_icon="📊", layout="wide")
 
-# Increase pandas styler limit
-pd.set_option('styler.render.max_elements', 1000000)
+# Custom CSS for the entire page
+st.markdown("""
+<style>
+    /* Main container styles */
+    .main > div {
+        padding: 0;
+        background: #f8f9fa;
+    }
+
+    /* Header styles */
+    .dashboard-header {
+        background: linear-gradient(135deg, #1976d2 0%, #2196f3 100%);
+        padding: 2.5rem 2rem;
+        position: relative;
+        overflow: hidden;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .dashboard-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1" fill="rgba(255,255,255,0.05)"/></svg>');
+        opacity: 0.3;
+    }
+
+    .header-content {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 1rem;
+    }
+
+    .dashboard-title {
+        color: white;
+        font-size: 2.4rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+    }
+
+    .dashboard-subtitle {
+        color: rgba(255, 255, 255, 0.95);
+        font-size: 1.1rem;
+        font-weight: 400;
+        max-width: 600px;
+        line-height: 1.6;
+    }
+
+    /* Main content area */
+    .content-wrapper {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 2rem 2rem 2rem;
+    }
+
+    /* Section styles */
+    .section-header {
+        background: white;
+        padding: 1.5rem 2rem;
+        border-radius: 12px;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .section-header::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 4px;
+        background: linear-gradient(to bottom, #2196f3, #1976d2);
+    }
+
+    .section-title {
+        color: #1565c0;
+        font-size: 1.3rem;
+        font-weight: 600;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+    }
+
+    /* Upload container styles */
+    .upload-container {
+        background: white;
+        border: 1px dashed rgba(33, 150, 243, 0.5);
+        border-radius: 6px;
+        padding: 1rem;
+        text-align: center;
+        transition: all 0.2s ease;
+        margin-bottom: 1rem;
+    }
+
+    .upload-container:hover {
+        border-color: #2196f3;
+        background: rgba(33, 150, 243, 0.02);
+    }
+
+    .upload-content {
+        margin: 0 auto;
+    }
+
+    .upload-title {
+        color: #1565c0;
+        font-size: 1rem;
+        font-weight: 500;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+    
+    /* Sidebar specific styles */
+    section[data-testid="stSidebar"] .upload-container {
+        background: transparent;
+        margin: 0 -1rem;
+        padding: 0.75rem;
+    }
+    
+    section[data-testid="stSidebar"] .stFileUploader > div {
+        padding: 0.5rem;
+    }
+
+    /* File uploader styling */
+    .stFileUploader > div {
+        padding: 1rem;
+    }
+
+    .stFileUploader > div > div {
+        background: white;
+        border-radius: 8px;
+        padding: 1.5rem;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Warning/Info message styles */
+    .stAlert {
+        background: white;
+        border: none;
+        border-radius: 8px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+        padding: 1rem 1.5rem;
+        margin: 1rem 0;
+    }
+
+    /* Button styles */
+    .stButton > button {
+        background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+        color: white;
+        border: none;
+        padding: 0.8rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 500;
+        letter-spacing: 0.3px;
+        transition: all 0.3s ease;
+    }
+
+    .stButton > button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+        background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%);
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: #2196f3;
+        border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: #1976d2;
+    }
+</style>
+"""
+, unsafe_allow_html=True)
+
+# Check authentication status
+if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
+    st.warning("Please log in from the Home page to access this dashboard.")
+    st.stop()
 
 def process_deductions_file(uploaded_file):
     """Process the uploaded deductions file and return a cleaned dataframe"""
@@ -129,14 +327,32 @@ def main():
     st.title("Deductions Insights")
     
     # Sidebar configuration
-    st.sidebar.title("Upload Data")
-    
-    # File uploader in sidebar
-    uploaded_file = st.sidebar.file_uploader(
-        "Upload Deductions File",
-        type=['csv', 'xlsx'],
-        help="Upload a CSV or Excel file containing deductions data"
-    )
+    # Display dashboard header with title and description
+    st.markdown("""
+        <div class="dashboard-header">
+            <div class="header-content">
+                <h1 class="dashboard-title">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="white">
+                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z"/>
+                        <path d="M7 12h2v5H7zm4-3h2v8h-2zm4-3h2v11h-2z"/>
+                    </svg>
+                    Deductions Insights
+                </h1>
+                <p class="dashboard-subtitle">
+                    Welcome to your comprehensive deductions analytics platform. Track, analyze, and optimize 
+                    your financial data with powerful visualizations and insights.
+                </p>
+            </div>
+        </div>
+        <div class="content-wrapper">
+    """, unsafe_allow_html=True)
+
+    # File upload in sidebar
+    with st.sidebar:
+        uploaded_file = st.file_uploader(
+            "Upload Data (.xlsx, .csv)",
+            type=["xlsx", "csv"]
+        )
     
     # Add a divider in sidebar
     if uploaded_file:
@@ -230,35 +446,45 @@ def main():
             # Custom CSS for metric containers
             metric_style = """
             <style>
-                [data-testid="stMetricValue"] {
-                    font-size: 1.2rem !important;
-                    color: #0066cc;
-                    font-weight: bold;
-                    white-space: nowrap;
-                    overflow: visible !important;
-                }
-                [data-testid="stMetricLabel"] {
-                    font-size: 1rem;
-                    color: #666;
-                    white-space: nowrap;
-                    overflow: visible !important;
-                }
-                div[data-testid="stMetricLabel"] > div {
-                    width: 100% !important;
-                    overflow: visible !important;
-                }
-                div[data-testid="stMetricValue"] > div {
-                    width: 100% !important;
-                    overflow: visible !important;
-                }
-                div[data-testid="metric-container"] {
-                    background-color: #f8f9fa;
-                    padding: 1rem;
-                    border-radius: 8px;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                .metric-container {
+                    background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+                    padding: 1.2rem;
+                    border-radius: 12px;
+                    box-shadow: 0 2px 12px rgba(0,0,0,0.03), 0 1px 4px rgba(0,0,0,0.02);
                     height: 100%;
                     width: 100%;
-                    overflow: visible !important;
+                    border: 1px solid rgba(230,230,230,0.7);
+                    transition: transform 0.2s ease, box-shadow 0.2s ease;
+                    margin-bottom: 1rem;
+                }
+                .metric-container:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 16px rgba(0,0,0,0.05), 0 2px 6px rgba(0,0,0,0.03);
+                }
+                .metric-label {
+                    font-size: 0.85rem;
+                    color: #666;
+                    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                    margin-bottom: 8px;
+                    font-weight: 500;
+                }
+                .metric-value-main {
+                    font-size: 1.3rem;
+                    font-weight: 700;
+                    color: #1a1a1a;
+                    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+                    letter-spacing: -0.5px;
+                    line-height: 1.4;
+                    margin-bottom: 4px;
+                }
+                .metric-value-secondary {
+                    font-size: 0.9rem;
+                    color: #0066cc;
+                    font-weight: 500;
+                    opacity: 0.9;
+                    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
                 }
             </style>
             """
@@ -269,15 +495,18 @@ def main():
                 full_amount = f"${amount:,.2f}"
                 millions = amount / 1_000_000
                 if millions >= 1:
-                    return f"{full_amount} [${millions:.1f}M]"
+                    return f"<div class='metric-value-main'>{full_amount}</div><div class='metric-value-secondary'>${millions:.1f}M</div>"
                 else:
-                    return full_amount
+                    return f"<div class='metric-value-main'>{full_amount}</div>"
             
             # Display total deductions in first column with icon
             with cols[0]:
-                st.metric(
-                    "💰 Total Deductions",
-                    format_amount_with_millions(total_deductions)
+                st.markdown(
+                    f"""<div class='metric-container'>
+                        <div class='metric-label'>💰 Total Deductions</div>
+                        {format_amount_with_millions(total_deductions)}
+                    </div>""",
+                    unsafe_allow_html=True
                 )
             
             # Environment icons mapping
@@ -292,9 +521,12 @@ def main():
             # Display environment-wise deductions with icons and styling
             for idx, (env, amount) in enumerate(env_deductions.items(), 1):
                 with cols[idx]:
-                    st.metric(
-                        f"{env_icons.get(env, '🔹')} {env}",
-                        format_amount_with_millions(amount)
+                    st.markdown(
+                        f"""<div class='metric-container'>
+                            <div class='metric-label'>{env_icons.get(env, '🔹')} {env}</div>
+                            {format_amount_with_millions(amount)}
+                        </div>""",
+                        unsafe_allow_html=True
                     )
 
             # Calculate employer statistics
