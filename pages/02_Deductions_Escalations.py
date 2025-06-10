@@ -374,53 +374,146 @@ def safe_sum(series, default=0):
         return default
     return series.sum()
 
+def format_amount_with_millions(amount):
+    """Format amount to show both full value and abbreviated value"""
+    full_amount = f"${amount:,.2f}"
+    billions = amount / 1_000_000_000
+    millions = amount / 1_000_000
+    
+    if billions >= 1:
+        return f"{full_amount}\n${billions:.2f}B"
+    elif millions >= 1:
+        return f"{full_amount}\n${millions:.2f}M"
+    else:
+        return full_amount
+
+def format_metric_html(label, main_value, sub_value=None, delta=None, color='#0066cc'):
+    """Format a metric with main value and optional sub-value using HTML"""
+    html = f"""
+    <div style='padding: 1rem; border-radius: 0.5rem;'>
+        <div style='color: #666; font-size: 1rem;'>{label}</div>
+        <div style='color: {color}; font-size: 1.5rem; margin-top: 0.5rem;'>{main_value}</div>
+    """
+    if sub_value:
+        html += f"<div style='color: #666; font-size: 0.9rem;'>{sub_value}</div>"
+    if delta:
+        html += f"<div style='color: #666; font-size: 0.8rem; margin-top: 0.5rem;'>{delta}</div>"
+    html += "</div>"
+    return html
+
 def display_metrics(df):
     """Display key metrics from the dataframe"""
     if df is None or df.empty:
         st.warning("No data available to display metrics.")
         return
     
+    # Add custom CSS
+    st.markdown("""
+    <style>
+    .metric-container {
+        padding: 1rem;
+        border-radius: 0.5rem;
+        background: white;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .metric-label {
+        color: #666;
+        font-size: 0.9rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    .metric-value {
+        font-size: 1.4rem;
+        font-weight: bold;
+        color: #0066cc;
+        margin-bottom: 0.25rem;
+    }
+    .metric-abbrev {
+        font-size: 1.1rem;
+        font-weight: bold;
+        color: #2196F3;
+        margin-left: 0.5rem;
+    }
+    .metric-delta {
+        font-size: 0.8rem;
+        color: #666;
+        font-style: italic;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
     # Safely calculate metrics with default values
     total_deductions = safe_sum(df.get('Amount'))
     total_failed = safe_sum(df.get('Failed Amount'))
+    total_transactions = len(df)
+    avg_deduction = total_deductions / total_transactions if total_transactions > 0 else 0
+    success_rate = ((total_transactions - (df['Failed Amount'] > 0).sum()) / total_transactions * 100) if total_transactions > 0 else 0
+    failure_rate = 100 - success_rate
     
-    # Calculate failure rate safely
-    if pd.notna(total_deductions) and total_deductions > 0 and pd.notna(total_failed):
-        failure_rate = (total_failed / total_deductions) * 100
-    else:
-        failure_rate = 0.0
-    
-    # Format values for display
-    def format_currency(value):
-        try:
-            return f"${float(value):,.2f}"
-        except (ValueError, TypeError):
-            return "$0.00"
-    
-    # Display metrics in columns with error handling
-    col1, col2, col3 = st.columns(3)
+    # Create metrics layout
+    col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.markdown(f"""
-        <div class='metric-card'>
-            <div class='metric-value'>{format_currency(total_deductions)}</div>
+        st.write(f"""
+        <div class='metric-container'>
             <div class='metric-label'>Total Deductions</div>
+            <div>
+                <span class='metric-value'>${total_deductions:,.2f}</span>
+                <span class='metric-abbrev'>${total_deductions/1_000_000:.1f}M</span>
+            </div>
+            <div class='metric-delta'>vs previous period</div>
         </div>
         """, unsafe_allow_html=True)
+    
     with col2:
-        delta_color = "#EF5350" if failure_rate > 0 else "#66BB6A"
-        st.markdown(f"""
-        <div class='metric-card'>
-            <div class='metric-value'>{format_currency(total_failed)}</div>
-            <div class='metric-label'>Failed Amount</div>
-            <div style="color: {delta_color}; font-size: 0.9rem; margin-top: 0.5rem;">{failure_rate:.1f}%</div>
+        st.write(f"""
+        <div class='metric-container'>
+            <div class='metric-label'>Success Rate</div>
+            <div class='metric-value'>{success_rate:.1f}%</div>
+            <div class='metric-delta'>vs previous period</div>
         </div>
         """, unsafe_allow_html=True)
+    
     with col3:
-        st.markdown(f"""
-        <div class='metric-card'>
-            <div class='metric-value'>{format_currency(total_deductions / len(df))}</div>
-            <div class='metric-label'>Average Amount</div>
+        st.write(f"""
+        <div class='metric-container'>
+            <div class='metric-label'>Avg. Deduction</div>
+            <div class='metric-value'>${avg_deduction:,.2f}</div>
+            <div class='metric-delta'>vs previous period</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col4:
+        st.write(f"""
+        <div class='metric-container'>
+            <div class='metric-label'>Failed Amount</div>
+            <div>
+                <span class='metric-value'>${total_failed:,.2f}</span>
+                <span class='metric-abbrev'>${total_failed/1_000_000:.1f}M</span>
+            </div>
+            <div class='metric-delta'>vs previous period</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Add transactions and failure rate below
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.write(f"""
+        <div class='metric-container'>
+            <div class='metric-label'>Transactions</div>
+            <div class='metric-value'>{total_transactions}</div>
+            <div class='metric-delta'>vs previous period</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.write(f"""
+        <div class='metric-container'>
+            <div class='metric-label'>Failure Rate</div>
+            <div class='metric-value'>{failure_rate:.1f}%</div>
+            <div class='metric-delta'>+ {failure_rate:.1f}% vs previous period</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -550,6 +643,8 @@ def main():
                 
                 # Display calendar pickers in columns
                 st.markdown("<p style='font-size: 0.9rem; color: #666; margin-top: 0.5rem;'>Custom Date Range:</p>", unsafe_allow_html=True)
+                
+                # Display calendar pickers in columns
                 col1, col2 = st.columns(2)
                 with col1:
                     start_date = st.date_input(
@@ -577,14 +672,17 @@ def main():
                 
                 # Show the active date range
                 st.markdown(f"<div style='background-color: #e8f4f8; padding: 0.5rem; border-radius: 4px; margin: 0.5rem 0;'><strong>Active Filter:</strong> {start_date} to {end_date} ({(end_date - start_date).days + 1} days)</div>", unsafe_allow_html=True)
+                
+                # Display key metrics with filtered data
+                st.markdown("<h4 class='sub-title'>🔑 Key Metrics</h4>", unsafe_allow_html=True)
             else:
                 filtered_df = df.copy()
                 st.warning("No date column found for filtering")
+                
+                # Display key metrics with unfiltered data
+                st.markdown("<h4 class='sub-title'>🔑 Key Metrics</h4>", unsafe_allow_html=True)
             
-            # Top row with enhanced metrics
-            st.markdown("<h4 class='sub-title'>🔑 Key Metrics</h4>", unsafe_allow_html=True)
-            
-            # Calculate metrics for current period
+            # Calculate current metrics for comparison
             total_deductions = filtered_df['Amount'].sum() if 'Amount' in filtered_df.columns else 0
             avg_deduction = filtered_df['Amount'].mean() if 'Amount' in filtered_df.columns else 0
             total_failed = filtered_df['Failed Amount'].sum() if 'Failed Amount' in filtered_df.columns else 0
@@ -639,7 +737,10 @@ def main():
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div>
                             <div style="font-size: 0.9rem; color: #666; margin-bottom: 0.5rem;">Total Deductions</div>
-                            <div style="font-size: 1.6rem; font-weight: 700; color: #1E88E5;">${total_deductions:,.2f}</div>
+                            <div style="font-size: 1.6rem; font-weight: 700; color: #1E88E5;">
+                                <span>${total_deductions:,.2f}</span>
+                                <span style="font-size: 1rem; margin-left: 0.5rem; opacity: 0.7;">(${total_deductions/1_000_000:.1f}M)</span>
+                            </div>
                         </div>
                         <div style="background-color: rgba(30, 136, 229, 0.1); padding: 0.5rem; border-radius: 50%; height: 40px; width: 40px; display: flex; align-items: center; justify-content: center;">
                             <span style="font-size: 1.5rem; color: #1E88E5;">💰</span>
@@ -731,7 +832,10 @@ def main():
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div>
                             <div style="font-size: 0.9rem; color: #666; margin-bottom: 0.5rem;">Avg. Deduction</div>
-                            <div style="font-size: 1.6rem; font-weight: 700; color: #FF9800;">${avg_deduction:,.2f}</div>
+                            <div style="font-size: 1.6rem; font-weight: 700; color: #FF9800;">
+                                <span>${avg_deduction:,.2f}</span>
+                                <span style="font-size: 1rem; margin-left: 0.5rem; opacity: 0.7;">(${avg_deduction/1_000:.1f}K)</span>
+                            </div>
                         </div>
                         <div style="background-color: rgba(255, 152, 0, 0.1); padding: 0.5rem; border-radius: 50%; height: 40px; width: 40px; display: flex; align-items: center; justify-content: center;">
                             <span style="font-size: 1.5rem; color: #FF9800;">📏</span>
@@ -754,7 +858,10 @@ def main():
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div>
                             <div style="font-size: 0.9rem; color: #666; margin-bottom: 0.5rem;">Failed Amount</div>
-                            <div style="font-size: 1.6rem; font-weight: 700; color: #E91E63;">${total_failed:,.2f}</div>
+                            <div style="font-size: 1.6rem; font-weight: 700; color: #E91E63;">
+                                <span>${total_failed:,.2f}</span>
+                                <span style="font-size: 1rem; margin-left: 0.5rem; opacity: 0.7;">(${total_failed/1_000_000:.1f}M)</span>
+                            </div>
                         </div>
                         <div style="background-color: rgba(233, 30, 99, 0.1); padding: 0.5rem; border-radius: 50%; height: 40px; width: 40px; display: flex; align-items: center; justify-content: center;">
                             <span style="font-size: 1.5rem; color: #E91E63;">⚠️</span>
