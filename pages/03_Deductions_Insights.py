@@ -491,11 +491,15 @@ def main():
             st.markdown(metric_style, unsafe_allow_html=True)
             
             def format_amount_with_millions(amount):
-                """Format amount with both full value and millions in brackets"""
+                """Format amount with both full value and millions/billions in brackets"""
                 full_amount = f"${amount:,.2f}"
+                billions = amount / 1_000_000_000
                 millions = amount / 1_000_000
-                if millions >= 1:
-                    return f"<div class='metric-value-main'>{full_amount}</div><div class='metric-value-secondary'>${millions:.1f}M</div>"
+                
+                if billions >= 1:
+                    return f"<div class='metric-value-main'>{full_amount}</div><div class='metric-value-secondary'>${billions:.2f}B</div>"
+                elif millions >= 1:
+                    return f"<div class='metric-value-main'>{full_amount}</div><div class='metric-value-secondary'>${millions:.2f}M</div>"
                 else:
                     return f"<div class='metric-value-main'>{full_amount}</div>"
             
@@ -519,8 +523,8 @@ def main():
             }
             
             # Display environment-wise deductions with icons and styling
-            for idx, (env, amount) in enumerate(env_deductions.items(), 1):
-                with cols[idx]:
+            for idx, (env, amount) in enumerate(env_deductions.items()):
+                with cols[idx + 1]:  # Start from index 1 since total is at index 0
                     st.markdown(
                         f"""<div class='metric-container'>
                             <div class='metric-label'>{env_icons.get(env, '🔹')} {env}</div>
